@@ -11,4 +11,9 @@ export interface DbMeetingCounter {
     dayStart: UtcInstant,
     dayEnd: UtcInstant,
   ): Promise<number>;
+  listMeetingStartsForMembers(
+    memberIds: string[],
+    windowStart: UtcInstant,
+    windowEnd: UtcInstant,
+  ): Promise<Map<string, UtcInstant[]>>;
 }

@@ -153,6 +153,28 @@ describe("POST /api/calendars", () => {
     });
   });
 
+  it("persists minNoticeHours on create", async () => {
+    const db = createDbMock({
+      insertReturning: [{ ...calendarRow, minNoticeHours: 48 }],
+    });
+
+    const res = await createCalendar(
+      jsonRequest({ ...createCalendarBody, minNoticeHours: 48 }),
+    );
+    expect(res.status).toBe(201);
+    expect(db.capturedInsertValues).toMatchObject({ minNoticeHours: 48 });
+  });
+
+  it("returns 400 when minNoticeHours is out of range", async () => {
+    createDbMock();
+    const res = await createCalendar(
+      jsonRequest({ ...createCalendarBody, minNoticeHours: 721 }),
+    );
+    expect(res.status).toBe(400);
+    const data = (await res.json()) as { error: string };
+    expect(data.error).toMatch(/between 0 and 720/);
+  });
+
   it("returns 400 when timezone is missing", async () => {
     createDbMock({});
     const { timezone: _tz, ...body } = createCalendarBody;
@@ -207,6 +229,20 @@ describe("PATCH /api/calendars/:id", () => {
     );
     expect(res.status).toBe(200);
     expect(db.capturedUpdateSet).toMatchObject({ timezone: "America/New_York" });
+  });
+
+  it("persists minNoticeHours on patch without resetting to zero", async () => {
+    const db = createDbMock({
+      updateReturning: [{ ...calendarRow, minNoticeHours: 12 }],
+    });
+
+    const res = await updateCalendar(
+      jsonRequest({ minNoticeHours: 12 }, "PATCH"),
+      { params: Promise.resolve({ id: "cal-1" }) },
+    );
+    expect(res.status).toBe(200);
+    expect(db.capturedUpdateSet).toMatchObject({ minNoticeHours: 12 });
+    expect(db.capturedUpdateSet).not.toHaveProperty("minNoticeHours", 0);
   });
 
   it("returns 400 for invalid working hours on patch", async () => {

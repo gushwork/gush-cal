@@ -125,4 +125,7 @@ export function gridHourLabels(): string[] {
   return labels;
 }
 
+/** Sticky column header height — must match across Time, member, and Bookable columns. */
+export const GRID_COLUMN_HEADER_HEIGHT_PX = 52;
+
 export { GRID_END_HOUR, GRID_START_HOUR, GRID_TOTAL_MINUTES };

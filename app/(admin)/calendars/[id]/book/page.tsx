@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { Suspense } from "react";
 import { BookingFlow } from "@/components/booking/booking-flow";
 import { loadCalendarBundle } from "@/components/calendar-admin/load-calendar-bundle";
 import { PageContainer } from "@/components/layout/page-container";
-import { PageHeader } from "@/components/ui";
+import { Button, PageHeader } from "@/components/ui";
 import { getSchedulerId } from "@/lib/auth";
 import { calendarPageTitle, pageTitle } from "@/lib/brand/metadata";
 import type { Metadata } from "next";
@@ -46,25 +47,27 @@ export default async function AdminBookPage({ params }: PageProps) {
         subtitle="Schedule on behalf of a candidate or internal guest."
         backHref={`/calendars/${id}`}
         backLabel={bundle.name}
+        actions={
+          <Button asChild variant="secondary" size="sm" className="w-full sm:w-auto">
+            <Link href={`/calendars/${id}/meetings`}>View meetings</Link>
+          </Button>
+        }
       />
 
-      <BookingFlow
-        calendarName={bundle.name}
-        durations={bundle.durations}
-        bookingWindowDays={bundle.bookingWindowDays}
-        slotsApiPath={`/api/calendars/${id}/slots`}
-        confirmApiPath={`/api/calendars/${id}/book`}
-        showPanelistCount
-      />
-
-      <p className="mt-6 text-sm">
-        <Link
-          href={`/calendars/${id}/meetings`}
-          className="text-ink-muted underline decoration-border underline-offset-2 hover:text-primary"
-        >
-          View all meetings
-        </Link>
-      </p>
+      <Suspense
+        fallback={
+          <div className="py-12 text-sm text-ink-muted">Loading booking…</div>
+        }
+      >
+        <BookingFlow
+          calendarName={bundle.name}
+          durations={bundle.durations}
+          bookingWindowDays={bundle.bookingWindowDays}
+          slotsApiPath={`/api/calendars/${id}/slots`}
+          confirmApiPath={`/api/calendars/${id}/book`}
+          showPanelistCount
+        />
+      </Suspense>
     </PageContainer>
   );
 }

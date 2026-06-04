@@ -111,8 +111,8 @@ export function WorkingHoursEditor({
   const globalError = inlineError ?? validationError(value);
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
+    <div className="space-y-6">
+      <div className="flex flex-wrap gap-3">
         <Button
           type="button"
           variant="secondary"

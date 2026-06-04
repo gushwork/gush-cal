@@ -23,7 +23,10 @@ export function Stepper({
   const currentIndex = steps.findIndex((s) => s.id === currentStep);
 
   return (
-    <nav aria-label="Booking progress" className="mb-8">
+    <nav aria-label="Booking progress" className="mb-4">
+      <p className="mb-2 text-xs font-medium text-ink-muted md:hidden">
+        Step {currentIndex + 1} of {steps.length}
+      </p>
       <ol className="flex items-center gap-2 sm:gap-4">
         {steps.map((step, index) => {
           const isCompleted =
@@ -62,7 +65,7 @@ export function Stepper({
                 )}
                 <span
                   className={cn(
-                    "truncate text-xs sm:text-sm",
+                    "hidden truncate text-xs sm:inline sm:text-sm",
                     isCurrent ? "font-medium text-ink" : "text-ink-muted",
                     isClickable && "interactive cursor-pointer",
                   )}

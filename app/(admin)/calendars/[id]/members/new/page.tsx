@@ -40,7 +40,7 @@ export default async function NewMemberPage({ params }: PageProps) {
   }
 
   return (
-    <PageContainer variant="default" className="max-w-2xl">
+    <PageContainer variant="form-wide">
       <Breadcrumbs
         items={[
           { label: "Calendars", href: "/calendars" },

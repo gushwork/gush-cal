@@ -22,7 +22,7 @@ function VerticalStepper({
 
   return (
     <nav aria-label="Booking progress" className="hidden md:block">
-      <ol className="flex flex-col gap-1">
+      <ol className="ml-2 space-y-1 border-l-2 border-border pl-4">
         {STEPS.map((step, index) => {
           const isCompleted = index < currentIndex;
           const isCurrent = step.id === currentStep;

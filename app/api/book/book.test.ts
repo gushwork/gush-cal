@@ -41,9 +41,13 @@ vi.mock("@/lib/booking/load-calendar-by-slug", () => ({
   loadCalendarBundleBySlug: vi.fn(),
 }));
 
-vi.mock("@/lib/booking/confirm-booking", () => ({
-  confirmBooking: (...args: unknown[]) => mockConfirmBooking(...args),
-}));
+vi.mock("@/lib/booking/confirm-booking", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/booking/confirm-booking")>();
+  return {
+    ...actual,
+    confirmBooking: (...args: unknown[]) => mockConfirmBooking(...args),
+  };
+});
 
 vi.mock("@/lib/deps", () => ({
   createAppDeps: () => ({ google: {}, slots: {}, db: {} }),
@@ -71,6 +75,34 @@ describe("public book API", () => {
       bookingWindowDays: 14,
       minNoticeHours: 4,
     });
+  });
+
+  it("POST /api/book/:slug/confirm returns 400 on min notice violation", async () => {
+    mockConfirmBooking.mockResolvedValue({
+      ok: false,
+      code: "MIN_NOTICE_VIOLATION" as const,
+    });
+
+    const res = await confirmPublicBooking(
+      new Request("http://localhost/api/book/eng-panel/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startsAt: "2026-06-10T14:00:00.000Z",
+          durationMinutes: 30,
+          subject: "Interview",
+          body: "",
+          invitees: ["candidate@example.com"],
+          viewerTimezone: "UTC",
+        }),
+      }),
+      { params: Promise.resolve({ slug: "eng-panel" }) },
+    );
+
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string; message: string };
+    expect(body.error).toBe("MIN_NOTICE_VIOLATION");
+    expect(body.message).toMatch(/too soon/i);
   });
 
   it("POST /api/book/:slug/confirm returns 409 on slot conflict", async () => {

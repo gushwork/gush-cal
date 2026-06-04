@@ -1,9 +1,16 @@
+import Link from "next/link";
+import { CheckCircle2, Video } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Icon } from "@/components/ui/icon";
+import { cn } from "@/lib/ui/cn";
 import type { IanaTimezone, PublicMeeting } from "@/lib/types";
 
 export type BookingSuccessPanelProps = {
   meeting: PublicMeeting;
   viewerTimezone: IanaTimezone;
   calendarName?: string;
+  bookAnotherHref?: string;
+  meetingsHref?: string;
 };
 
 function formatMeetingTime(startsAt: string, timezone: IanaTimezone): string {
@@ -33,25 +40,51 @@ export function BookingSuccessPanel({
   meeting,
   viewerTimezone,
   calendarName,
+  bookAnotherHref,
+  meetingsHref,
 }: BookingSuccessPanelProps) {
+  const showAdminLinks = Boolean(bookAnotherHref || meetingsHref);
+
   return (
     <div
-      className="animate-step-in rounded-xl bg-primary-soft px-6 py-8 sm:px-8"
+      className={cn(
+        "rounded-[var(--radius-control)] bg-primary-soft px-6 py-8 sm:px-8 print:bg-white print:shadow-none",
+      )}
       role="status"
     >
-      <p className="text-sm font-medium uppercase tracking-wide text-primary">
-        You&apos;re all set
-      </p>
-      <h2 className="mt-2 font-display text-2xl font-semibold text-ink">
-        Meeting booked
-      </h2>
-      {calendarName ? (
-        <p className="mt-1 text-sm text-ink-muted">with {calendarName}</p>
-      ) : null}
+      <div
+        className="animate-pop-in flex justify-center"
+        style={{ animationDelay: "0ms" }}
+      >
+        <Icon
+          icon={CheckCircle2}
+          size="lg"
+          className="text-primary"
+          label="Booking confirmed"
+        />
+      </div>
 
-      <div className="mt-6 space-y-2">
+      <div
+        className="animate-fade-up mt-4 text-center"
+        style={{ animationDelay: "80ms" }}
+      >
+        <p className="label-secondary text-primary">You&apos;re all set</p>
+        <h2 className="text-display leading-display mt-1 font-display font-semibold text-ink">
+          Meeting booked
+        </h2>
+        {calendarName ? (
+          <p className="prose-measure mx-auto mt-1 text-sm leading-body text-ink-muted">
+            with {calendarName}
+          </p>
+        ) : null}
+      </div>
+
+      <div
+        className="animate-fade-up mt-6 space-y-2 text-center"
+        style={{ animationDelay: "160ms" }}
+      >
         <p className="text-lg font-medium text-ink">{meeting.subject}</p>
-        <p className="text-sm text-ink-muted">
+        <p className="prose-measure mx-auto text-sm leading-body text-ink-muted">
           {formatMeetingTime(meeting.startsAt, viewerTimezone)}
           <span className="text-ink-muted/80">
             {" "}
@@ -60,26 +93,46 @@ export function BookingSuccessPanel({
         </p>
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-3">
+      <div
+        className="animate-fade-up mt-6 flex flex-wrap justify-center gap-3 print:hidden"
+        style={{ animationDelay: "240ms" }}
+      >
         {meeting.meetLink ? (
+          <Button asChild variant="primary" size="md">
+            <a href={meeting.meetLink} target="_blank" rel="noreferrer">
+              <Icon icon={Video} size="sm" className="mr-2 text-white" />
+              Join Google Meet
+            </a>
+          </Button>
+        ) : null}
+        <Button asChild variant="secondary" size="md">
           <a
-            href={meeting.meetLink}
-            className="interactive inline-flex items-center rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary/90"
+            href={googleCalendarUrl(meeting)}
             target="_blank"
             rel="noreferrer"
           >
-            Join Google Meet
+            Add to Google Calendar
           </a>
-        ) : null}
-        <a
-          href={googleCalendarUrl(meeting)}
-          className="interactive inline-flex items-center rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-medium text-ink transition-colors hover:border-primary hover:bg-paper"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Add to Google Calendar
-        </a>
+        </Button>
       </div>
+
+      {showAdminLinks ? (
+        <div
+          className="animate-fade-up mt-6 flex flex-wrap justify-center gap-3 border-t border-border/60 pt-4 print:hidden"
+          style={{ animationDelay: "320ms" }}
+        >
+          {bookAnotherHref ? (
+            <Button asChild variant="secondary" size="sm">
+              <Link href={bookAnotherHref}>Book another meeting</Link>
+            </Button>
+          ) : null}
+          {meetingsHref ? (
+            <Button asChild variant="ghost" size="sm">
+              <Link href={meetingsHref}>View meetings</Link>
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -1,14 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { MeetingCard } from "@/components/booking/meeting-card";
 import { MeetingsTable } from "@/components/booking/meetings-table";
-import { Button, Card, EmptyState, Skeleton } from "@/components/ui";
+import { Button, Card, Dialog, EmptyState, Skeleton } from "@/components/ui";
+import { toast } from "@/components/ui/toast";
 import type { Meeting } from "@/lib/types";
 
 type MeetingsListProps = {
   calendarId: string;
   memberNames: Record<string, string>;
+  initialMeetings?: Meeting[];
 };
 
 const SKELETON_COUNT = 4;
@@ -91,10 +94,18 @@ function MeetingsCards({
   cancellingId: string | null;
 }) {
   const now = Date.now();
-  const upcoming = meetings.filter(
-    (m) => new Date(m.startsAt).getTime() >= now,
-  );
-  const past = meetings.filter((m) => new Date(m.startsAt).getTime() < now);
+  const upcoming = meetings
+    .filter((m) => new Date(m.startsAt).getTime() >= now)
+    .sort(
+      (a, b) =>
+        new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+    );
+  const past = meetings
+    .filter((m) => new Date(m.startsAt).getTime() < now)
+    .sort(
+      (a, b) =>
+        new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime(),
+    );
 
   if (past.length === 0) {
     return (
@@ -146,40 +157,49 @@ function MeetingsCards({
   );
 }
 
-export function MeetingsList({ calendarId, memberNames }: MeetingsListProps) {
-  const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [loading, setLoading] = useState(true);
+export function MeetingsList({
+  calendarId,
+  memberNames,
+  initialMeetings = [],
+}: MeetingsListProps) {
+  const [meetings, setMeetings] = useState<Meeting[]>(initialMeetings);
+  const [loading, setLoading] = useState(initialMeetings.length === 0);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
 
-  const loadMeetings = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/calendars/${calendarId}/meetings`);
-      const data = (await res.json()) as {
-        meetings?: Meeting[];
-        error?: string;
-      };
-      if (!res.ok) {
-        throw new Error(data.error ?? "Failed to load meetings");
+  const loadMeetings = useCallback(
+    async (background = false) => {
+      if (!background) {
+        setLoading(true);
       }
-      setMeetings(data.meetings ?? []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load meetings");
-    } finally {
-      setLoading(false);
-    }
-  }, [calendarId]);
+      setError(null);
+      try {
+        const res = await fetch(`/api/calendars/${calendarId}/meetings`);
+        const data = (await res.json()) as {
+          meetings?: Meeting[];
+          error?: string;
+        };
+        if (!res.ok) {
+          throw new Error(data.error ?? "Failed to load meetings");
+        }
+        setMeetings(data.meetings ?? []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load meetings");
+      } finally {
+        if (!background) {
+          setLoading(false);
+        }
+      }
+    },
+    [calendarId],
+  );
 
   useEffect(() => {
-    void loadMeetings();
-  }, [loadMeetings]);
+    void loadMeetings(initialMeetings.length > 0);
+  }, [initialMeetings.length, loadMeetings]);
 
   function handleCancelRequest(meetingId: string) {
-    setSuccess(null);
     setError(null);
     setConfirmCancelId(meetingId);
   }
@@ -193,7 +213,6 @@ export function MeetingsList({ calendarId, memberNames }: MeetingsListProps) {
     setConfirmCancelId(null);
     setCancellingId(meetingId);
     setError(null);
-    setSuccess(null);
 
     try {
       const res = await fetch(`/api/meetings/${meetingId}`, { method: "DELETE" });
@@ -202,8 +221,9 @@ export function MeetingsList({ calendarId, memberNames }: MeetingsListProps) {
         throw new Error(data.error ?? "Failed to cancel meeting");
       }
       setMeetings((prev) => prev.filter((m) => m.id !== meetingId));
-      setSuccess(
-        "Meeting cancelled. Attendees were notified and the panelist slot is available again.",
+      toast(
+        "Meeting cancelled. Attendees were notified and the member slot is available again.",
+        { variant: "success" },
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to cancel meeting");
@@ -222,16 +242,6 @@ export function MeetingsList({ calendarId, memberNames }: MeetingsListProps) {
 
   return (
     <div className="space-y-4">
-      {success && (
-        <div role="status">
-          <Card
-            padding="sm"
-            className="border-success-soft bg-success-soft text-sm text-success-ink"
-          >
-            {success}
-          </Card>
-        </div>
-      )}
       {error && (
         <div role="alert">
           <Card
@@ -242,44 +252,32 @@ export function MeetingsList({ calendarId, memberNames }: MeetingsListProps) {
           </Card>
         </div>
       )}
-      {pendingMeeting && (
-        <Card padding="md" className="border-primary/30 bg-primary-soft/40">
-          <p className="text-sm text-ink">
-            Cancel <strong>{pendingMeeting.subject}</strong> for all attendees?
-            This removes it from everyone&apos;s calendar and frees the
-            panelist&apos;s slot.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => void handleConfirmCancel()}
-              disabled={cancellingId !== null}
-              loading={cancellingId !== null}
-            >
-              Yes, cancel meeting
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setConfirmCancelId(null)}
-              disabled={cancellingId !== null}
-            >
-              Keep meeting
-            </Button>
-          </div>
-        </Card>
-      )}
+      <Dialog
+        open={confirmCancelId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirmCancelId(null);
+          }
+        }}
+        title="Cancel meeting?"
+        description={
+          pendingMeeting
+            ? `Cancel ${pendingMeeting.subject} for all attendees? This removes it from everyone's calendar and frees the member's slot.`
+            : undefined
+        }
+        confirmLabel="Yes, cancel meeting"
+        cancelLabel="Keep meeting"
+        variant="destructive"
+        onConfirm={() => void handleConfirmCancel()}
+      />
       {meetings.length === 0 ? (
         <EmptyState
           title="No meetings yet"
           description="Book a meeting to see it listed here."
           action={
-            <form action={`/calendars/${calendarId}/book`}>
-              <Button type="submit" variant="primary">
-                Book meeting
-              </Button>
-            </form>
+            <Button asChild className="w-full sm:w-auto">
+              <Link href={`/calendars/${calendarId}/book`}>Book meeting</Link>
+            </Button>
           }
         />
       ) : (

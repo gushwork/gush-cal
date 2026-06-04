@@ -4,24 +4,27 @@ import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { PageContainer } from "@/components/layout/page-container";
 import { Card, PageHeader } from "@/components/ui";
 
-export const metadata = pageTitle("New calendar");
+export const metadata = pageTitle("New Calendar");
 
 export default function NewCalendarPage() {
   return (
-    <PageContainer variant="narrow">
+    <PageContainer variant="default">
       <Breadcrumbs
         items={[
           { label: "Calendars", href: "/calendars" },
-          { label: "New calendar" },
+          { label: "New Calendar" },
         ]}
       />
       <PageHeader
         title="New Calendar"
         subtitle="Set timezone, default working hours, booking rules, and meeting durations."
       />
-      <Card>
-        <CalendarForm mode="create" />
-      </Card>
+      <section>
+        <h2 className="text-heading font-semibold text-ink">Calendar Settings</h2>
+        <Card className="mt-4">
+          <CalendarForm mode="create" />
+        </Card>
+      </section>
     </PageContainer>
   );
 }

@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
+import { cache } from "react";
 import { getAllowedDomain, isAllowedEmail } from "@/lib/auth/domain";
 import { getDb } from "@/lib/db/client";
 import { schedulers } from "@/lib/db/schema";
@@ -63,7 +64,7 @@ export async function getSession() {
   return auth();
 }
 
-export async function getSchedulerId(): Promise<string | null> {
+export const getSchedulerId = cache(async function getSchedulerId(): Promise<string | null> {
   const session = await auth();
   if (!session?.user?.email) {
     return null;
@@ -77,6 +78,6 @@ export async function getSchedulerId(): Promise<string | null> {
     .limit(1);
 
   return scheduler?.id ?? null;
-}
+});
 
 export const { GET, POST } = handlers;

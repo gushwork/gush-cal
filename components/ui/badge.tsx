@@ -3,6 +3,7 @@ import { cn } from "@/lib/ui/cn";
 export type BadgeProps = {
   children: React.ReactNode;
   variant?: "default" | "count" | "muted";
+  size?: "sm" | "md";
   className?: string;
 };
 
@@ -12,12 +13,23 @@ const variants = {
   muted: "bg-paper text-ink-muted border border-border",
 };
 
-export function Badge({ children, variant = "default", className }: BadgeProps) {
+const sizes = {
+  sm: "px-1.5 py-0.5 text-[10px]",
+  md: "px-2 py-0.5 text-xs",
+};
+
+export function Badge({
+  children,
+  variant = "default",
+  size = "md",
+  className,
+}: BadgeProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-medium",
+        "inline-flex items-center justify-center rounded-[var(--radius-pill)] font-medium",
         variants[variant],
+        sizes[size],
         className,
       )}
     >

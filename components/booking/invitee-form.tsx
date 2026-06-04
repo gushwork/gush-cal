@@ -1,6 +1,9 @@
 "use client";
 
-import { Input, Label, Textarea } from "@/components/ui";
+import { useMemo } from "react";
+import { FormField } from "@/components/ui/form-field";
+import { Input, Textarea } from "@/components/ui";
+import { cn } from "@/lib/ui/cn";
 
 const BODY_MAX_LENGTH = 2000;
 
@@ -14,7 +17,14 @@ type InviteeFormProps = {
   onSubjectChange: (value: string) => void;
   onBodyChange: (value: string) => void;
   onGuestEmailChange?: (value: string) => void;
+  disabled?: boolean;
 };
+
+function isValidEmail(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+}
 
 export function InviteeForm({
   invitees,
@@ -26,77 +36,92 @@ export function InviteeForm({
   onSubjectChange,
   onBodyChange,
   onGuestEmailChange,
+  disabled = false,
 }: InviteeFormProps) {
+  const inviteeCount = useMemo(
+    () => parseInviteeLines(invitees).length,
+    [invitees],
+  );
+
+  const guestEmailError =
+    showGuestEmail && guestEmail.trim() && !isValidEmail(guestEmail)
+      ? "Enter a valid email address"
+      : undefined;
+
   return (
-    <div className="space-y-4">
+    <div className={cn("space-y-4", disabled && "pointer-events-none opacity-60")}>
       {showGuestEmail && onGuestEmailChange ? (
-        <div>
-          <Label htmlFor="guest-email">Your email</Label>
-          <p className="mt-0.5 text-xs text-ink-muted">
-            We&apos;ll send the calendar invite here.
-          </p>
+        <FormField
+          id="guest-email"
+          label="Your email"
+          hint="We'll send the calendar invite here."
+          error={guestEmailError}
+          required
+        >
           <Input
-            id="guest-email"
             type="email"
             value={guestEmail}
             onChange={(e) => onGuestEmailChange(e.target.value)}
             placeholder="you@example.com"
-            required
-            className="mt-1"
+            disabled={disabled}
           />
-        </div>
+        </FormField>
       ) : null}
 
-      <div>
-        <Label htmlFor="invitees">
-          {showGuestEmail ? "Additional guests (optional)" : "Invitees"}
-        </Label>
-        <p className="mt-0.5 text-xs text-ink-muted">
-          {showGuestEmail
-            ? "One email per line for anyone else joining."
-            : "One email per line."}
-        </p>
-        <Textarea
+      <div className="space-y-1.5">
+        <FormField
           id="invitees"
-          value={invitees}
-          onChange={(e) => onInviteesChange(e.target.value)}
-          rows={3}
-          placeholder={
-            showGuestEmail ? "colleague@example.com" : "candidate@example.com"
+          label={showGuestEmail ? "Additional guests (optional)" : "Invitees"}
+          hint={
+            showGuestEmail
+              ? "One email per line for anyone else joining."
+              : "One email per line."
           }
-          className="mt-1"
-        />
+        >
+          <Textarea
+            value={invitees}
+            onChange={(e) => onInviteesChange(e.target.value)}
+            rows={3}
+            placeholder={
+              showGuestEmail ? "colleague@example.com" : "candidate@example.com"
+            }
+            disabled={disabled}
+          />
+        </FormField>
+        {inviteeCount > 0 ? (
+          <p className="text-xs text-ink-muted">
+            {inviteeCount} invitee{inviteeCount === 1 ? "" : "s"} added
+          </p>
+        ) : null}
       </div>
 
-      <div>
-        <Label htmlFor="subject">Subject</Label>
+      <FormField id="subject" label="Subject" required>
         <Input
-          id="subject"
           type="text"
           value={subject}
           onChange={(e) => onSubjectChange(e.target.value)}
           required
-          className="mt-1"
+          disabled={disabled}
         />
-      </div>
+      </FormField>
 
-      <div>
-        <div className="flex items-baseline justify-between gap-2">
-          <Label htmlFor="body">Message (optional)</Label>
-          <span className="text-xs text-ink-muted">
-            {body.length}/{BODY_MAX_LENGTH}
-          </span>
+      <FormField id="body" label="Message (optional)">
+        <div className="space-y-1">
+          <div className="flex justify-end">
+            <span className="text-xs text-ink-muted">
+              {body.length}/{BODY_MAX_LENGTH}
+            </span>
+          </div>
+          <Textarea
+            value={body}
+            onChange={(e) =>
+              onBodyChange(e.target.value.slice(0, BODY_MAX_LENGTH))
+            }
+            rows={4}
+            disabled={disabled}
+          />
         </div>
-        <Textarea
-          id="body"
-          value={body}
-          onChange={(e) =>
-            onBodyChange(e.target.value.slice(0, BODY_MAX_LENGTH))
-          }
-          rows={4}
-          className="mt-1"
-        />
-      </div>
+      </FormField>
     </div>
   );
 }
@@ -106,4 +131,8 @@ export function parseInviteeLines(text: string): string[] {
     .split(/[\n,;]+/)
     .map((line) => line.trim())
     .filter(Boolean);
+}
+
+export function isGuestEmailValid(email: string): boolean {
+  return isValidEmail(email);
 }

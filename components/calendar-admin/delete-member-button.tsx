@@ -1,6 +1,7 @@
 "use client";
 
 import { Dialog, Button } from "@/components/ui";
+import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/ui/cn";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -67,7 +68,7 @@ export function DeleteMemberButton({
         // ignore non-JSON error bodies
       }
       if (compact) {
-        alert(message);
+        toast(message, { variant: "error" });
       } else {
         setError(message);
       }
@@ -101,7 +102,7 @@ export function DeleteMemberButton({
       className={cn(
         "text-ink-muted hover:text-destructive",
         compact &&
-          "opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100",
+          "opacity-100 md:opacity-0 md:transition-opacity md:group-hover:opacity-100 md:focus-visible:opacity-100",
       )}
       onClick={(e) => {
         if (compact) {

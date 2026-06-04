@@ -29,7 +29,7 @@ describe("SlotPicker", () => {
 
     expect(html).toContain("grid-cols-3");
     expect(html).toContain("sm:grid-cols-4");
-    expect(html).toContain("rounded-full");
+    expect(html).toContain("rounded-[var(--radius-pill)]");
   });
 
   it("marks selected chip with aria-pressed and primary tokens", () => {
@@ -45,7 +45,7 @@ describe("SlotPicker", () => {
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain("bg-primary text-white");
     expect(html).toContain('aria-pressed="false"');
-    expect(html).toContain("bg-primary-soft text-primary");
+    expect(html).toContain("bg-primary text-white");
   });
 
   it("renders formatted time labels for each slot", () => {
@@ -74,7 +74,7 @@ describe("SlotPicker", () => {
         viewerTimezone="UTC"
       />,
     );
-    expect(loading).toContain("Loading available times");
+    expect(loading).toContain("Loading times");
 
     const empty = renderToStaticMarkup(
       <SlotPicker

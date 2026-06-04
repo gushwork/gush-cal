@@ -1,12 +1,16 @@
 import { cn } from "@/lib/ui/cn";
+import { CalendarClock, Users } from "lucide-react";
+import Link from "next/link";
 
 export type CalendarStatsProps = {
+  calendarId: string;
   memberCount: number;
   upcomingMeetingCount: number;
   className?: string;
 };
 
 export function CalendarStats({
+  calendarId,
   memberCount,
   upcomingMeetingCount,
   className,
@@ -18,22 +22,30 @@ export function CalendarStats({
         className,
       )}
     >
-      <div className="rounded-xl border border-border bg-surface px-4 py-3">
-        <dt className="text-xs font-medium uppercase tracking-wide text-ink-muted">
+      <Link
+        href={`/calendars/${calendarId}?tab=members`}
+        className="interactive-lift interactive rounded-xl border border-border bg-surface px-4 py-3 hover:border-primary/30"
+      >
+        <dt className="label-secondary flex items-center gap-2">
+          <Users className="h-4 w-4" aria-hidden />
           Members
         </dt>
-        <dd className="mt-1 text-2xl font-semibold tabular-nums text-ink">
+        <dd className="numeric mt-1 text-2xl font-semibold text-ink">
           {memberCount}
         </dd>
-      </div>
-      <div className="rounded-xl border border-border bg-surface px-4 py-3">
-        <dt className="text-xs font-medium uppercase tracking-wide text-ink-muted">
+      </Link>
+      <Link
+        href={`/calendars/${calendarId}/meetings`}
+        className="interactive-lift interactive rounded-xl border border-border bg-surface px-4 py-3 hover:border-primary/30"
+      >
+        <dt className="label-secondary flex items-center gap-2">
+          <CalendarClock className="h-4 w-4" aria-hidden />
           Upcoming meetings
         </dt>
-        <dd className="mt-1 text-2xl font-semibold tabular-nums text-ink">
+        <dd className="numeric mt-1 text-2xl font-semibold text-ink">
           {upcomingMeetingCount}
         </dd>
-      </div>
+      </Link>
     </dl>
   );
 }

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DEFAULT_WORKING_HOURS } from "./validation";
@@ -5,6 +7,10 @@ import type { Calendar, WorkingHours } from "@/lib/types";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+}));
+
+vi.mock("@/components/ui/toast", () => ({
+  toast: vi.fn(),
 }));
 
 vi.mock("@/components/calendar-admin/working-hours-editor", () => ({
@@ -86,7 +92,7 @@ describe("CalendarForm", () => {
     const html = renderToStaticMarkup(<CalendarForm mode="create" />);
 
     expect(html).toContain("Calendar timezone");
-    expect(html).toContain("Default working hours");
+    expect(html).toContain("Timezone and working hours");
     expect(html).toContain("Working hours editor (5 blocks)");
   });
 
@@ -97,5 +103,18 @@ describe("CalendarForm", () => {
 
     expect(html).toContain("Europe/London");
     expect(html).toContain("Availability windows are interpreted in Europe/London");
+    expect(html).toContain("text-heading");
+  });
+});
+
+describe("SP-13 calendar form", () => {
+  it("uses grouped sections and toast on save", () => {
+    const source = readFileSync(
+      join(process.cwd(), "components/calendar-admin/calendar-form.tsx"),
+      "utf8",
+    );
+    expect(source).toContain("FormSection");
+    expect(source).toContain("toast(");
+    expect(source).toContain("AlertBanner");
   });
 });

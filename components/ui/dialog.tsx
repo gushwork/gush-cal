@@ -30,8 +30,11 @@ export function Dialog({
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-ink/40" />
         <DialogPrimitive.Content
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+          }}
           className={cn(
-            "fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-surface p-6 shadow-lg",
+            "fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-[var(--radius-control)] border border-border bg-surface p-6 shadow-[var(--shadow-md)] focus:outline-none",
           )}
         >
           <DialogPrimitive.Title className="text-title font-display font-semibold text-ink">

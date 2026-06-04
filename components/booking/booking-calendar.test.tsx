@@ -48,7 +48,7 @@ describe("CalendarDayOverlay", () => {
       <CalendarDayOverlay day={8} slotCount={0} state="no-slots" />,
     );
     expect(html).not.toContain("bg-primary text-white");
-    expect(html).toContain("text-ink-muted/40");
+    expect(html).toContain("line-through");
   });
 });
 
@@ -80,7 +80,7 @@ describe("BookingCalendar", () => {
     expect(html).toContain('aria-label="Go to the Next Month"');
   });
 
-  it("shows loading message when loading", () => {
+  it("shows skeleton grid when loading", () => {
     const html = renderToStaticMarkup(
       <BookingCalendar
         visibleMonth={{ year: 2026, month: 6 }}
@@ -95,7 +95,7 @@ describe("BookingCalendar", () => {
       />,
     );
 
-    expect(html).toContain("Loading availability");
-    expect(html).toContain("pointer-events-none");
+    expect(html).toContain("Loading calendar");
+    expect(html).toContain("animate-skeleton");
   });
 });

@@ -1,11 +1,16 @@
 "use client";
 
+import { ExternalLink } from "lucide-react";
 import { Badge, Button, Card } from "@/components/ui";
+import { Avatar } from "@/components/ui/avatar";
+import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/ui/cn";
+import { formatBookedBy } from "@/lib/ui/format-booked-by";
 import type { Meeting } from "@/lib/types";
 import {
   formatInvitees,
   formatMeetingTime,
+  formatRelativeMeetingTime,
 } from "@/components/booking/meeting-card";
 
 type MeetingsTableProps = {
@@ -39,11 +44,15 @@ function MeetingRows({
     <>
       {meetings.map((meeting) => {
         const isPast = new Date(meeting.startsAt).getTime() < now;
+        const memberName =
+          memberNames[meeting.assignedMemberId] ?? meeting.assignedMemberId;
+        const relativeTime = formatRelativeMeetingTime(meeting.startsAt);
+
         return (
           <tr
             key={meeting.id}
             className={cn(
-              "bg-paper/60 transition-colors hover:bg-paper",
+              "interactive-row bg-paper/60",
               isPast && "text-ink-muted",
             )}
           >
@@ -56,6 +65,9 @@ function MeetingRows({
                   <Badge variant="muted">Past</Badge>
                 )}
               </div>
+              {relativeTime && (
+                <div className="text-xs text-ink-muted">{relativeTime}</div>
+              )}
               <div className="text-xs text-ink-muted">
                 {meeting.durationMinutes} min
               </div>
@@ -67,19 +79,25 @@ function MeetingRows({
               </div>
             </td>
             <td className="px-4 py-3">
-              {memberNames[meeting.assignedMemberId] ?? meeting.assignedMemberId}
+              <div className="flex items-center gap-2">
+                <Avatar name={memberName} size="sm" />
+                <span>{memberName}</span>
+              </div>
             </td>
-            <td className="px-4 py-3 capitalize">{meeting.bookedBy}</td>
+            <td className="px-4 py-3">{formatBookedBy(meeting.bookedBy)}</td>
             <td className="px-4 py-3">
               {meeting.meetLink ? (
-                <a
-                  href={meeting.meetLink}
-                  className="text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Join
-                </a>
+                <Button asChild variant="link" size="sm">
+                  <a
+                    href={meeting.meetLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Join ${meeting.subject}`}
+                  >
+                    Join
+                    <Icon icon={ExternalLink} size="sm" className="ml-1" />
+                  </a>
+                </Button>
               ) : (
                 <span className="text-ink-muted">—</span>
               )}
@@ -89,9 +107,11 @@ function MeetingRows({
                 <Button
                   type="button"
                   variant="ghost"
+                  size="sm"
                   disabled={cancellingId === meeting.id}
                   onClick={() => onCancelRequest(meeting.id)}
-                  className="px-2 py-1 text-primary hover:bg-primary-soft hover:text-primary"
+                  aria-label={`Cancel ${meeting.subject}`}
+                  className="px-2 py-1 text-ink-muted hover:bg-destructive-soft hover:text-destructive"
                 >
                   {cancellingId === meeting.id ? "Cancelling…" : "Cancel"}
                 </Button>
@@ -127,12 +147,24 @@ function MeetingsTableSection({
           <table className="min-w-full text-sm">
             <thead className="border-b border-border bg-paper text-left text-ink-muted">
               <tr>
-                <th className="px-4 py-3 font-medium">When</th>
-                <th className="px-4 py-3 font-medium">Subject / invitees</th>
-                <th className="px-4 py-3 font-medium">Member</th>
-                <th className="px-4 py-3 font-medium">Booked by</th>
-                <th className="px-4 py-3 font-medium">Meet</th>
-                <th className="px-4 py-3 font-medium" />
+                <th scope="col" className="label-secondary px-4 py-3 font-medium">
+                  When
+                </th>
+                <th scope="col" className="label-secondary px-4 py-3 font-medium">
+                  Subject / invitees
+                </th>
+                <th scope="col" className="label-secondary px-4 py-3 font-medium">
+                  Member
+                </th>
+                <th scope="col" className="label-secondary px-4 py-3 font-medium">
+                  Booked by
+                </th>
+                <th scope="col" className="label-secondary px-4 py-3 font-medium">
+                  Join
+                </th>
+                <th scope="col" className="label-secondary px-4 py-3 font-medium">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -163,10 +195,18 @@ export function MeetingsTable({
   }
 
   const now = Date.now();
-  const upcoming = meetings.filter(
-    (m) => new Date(m.startsAt).getTime() >= now,
-  );
-  const past = meetings.filter((m) => new Date(m.startsAt).getTime() < now);
+  const upcoming = meetings
+    .filter((m) => new Date(m.startsAt).getTime() >= now)
+    .sort(
+      (a, b) =>
+        new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+    );
+  const past = meetings
+    .filter((m) => new Date(m.startsAt).getTime() < now)
+    .sort(
+      (a, b) =>
+        new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime(),
+    );
 
   if (past.length === 0) {
     return (

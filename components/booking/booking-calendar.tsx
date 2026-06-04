@@ -3,9 +3,11 @@
 import { useCallback, useMemo } from "react";
 import {
   CalendarDayOverlay,
+  calendarDayAriaLabel,
   type CalendarDayState,
 } from "@/components/booking/calendar-day-overlay";
 import { Calendar } from "@/components/ui/calendar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/ui/cn";
 import type { IanaTimezone } from "@/lib/types";
 import { toDateKey } from "./group-slots-by-date";
@@ -56,7 +58,6 @@ function dateKeyToLocalDate(dateKey: DateKey): Date {
 }
 
 function resolveDayState(
-  dateKey: DateKey,
   inRange: boolean,
   slotCount: number,
   selected: boolean,
@@ -75,6 +76,20 @@ function resolveDayState(
     return "no-slots";
   }
   return "available";
+}
+
+function CalendarSkeletonGrid() {
+  return (
+    <div
+      className="grid grid-cols-7 gap-1.5"
+      aria-busy="true"
+      aria-label="Loading calendar"
+    >
+      {Array.from({ length: 42 }, (_, i) => (
+        <Skeleton key={i} className="min-h-[3.25rem] w-full rounded-lg" />
+      ))}
+    </div>
+  );
 }
 
 export function BookingCalendar({
@@ -123,31 +138,34 @@ export function BookingCalendar({
       const slotCount = slotCountsByDate.get(dateKey) ?? 0;
       const selectedDay = selectedDate === dateKey;
       const state = resolveDayState(
-        dateKey,
         inRange,
         slotCount,
         selectedDay,
         Boolean(modifiers.outside),
       );
+      const dayNumber = day.date.getDate();
 
       return (
         <button
           type="button"
           {...buttonProps}
+          aria-label={calendarDayAriaLabel(dayNumber, state, slotCount)}
           className={cn(
             "interactive relative flex min-h-[3.25rem] w-full flex-col items-center justify-center rounded-lg border text-sm transition-colors",
             state === "selected" &&
               "cursor-pointer border-primary bg-primary text-white",
             state === "available" &&
               "cursor-pointer border-border bg-surface ring-1 ring-primary/20 hover:border-primary/50",
-            (state === "no-slots" || state === "out-of-window") &&
-              "cursor-not-allowed border-transparent",
+            state === "no-slots" &&
+              "cursor-not-allowed border-dashed border-border/80 bg-paper",
+            state === "out-of-window" &&
+              "cursor-not-allowed border-transparent bg-transparent",
             state === "outside-month" && "border-transparent opacity-40",
             className,
           )}
         >
           <CalendarDayOverlay
-            day={day.date.getDate()}
+            day={dayNumber}
             slotCount={slotCount}
             state={state}
           />
@@ -163,30 +181,26 @@ export function BookingCalendar({
     ],
   );
 
+  if (loading) {
+    return <CalendarSkeletonGrid />;
+  }
+
   return (
-    <div className="animate-step-in">
-      {loading ? (
-        <p className="mb-3 text-center text-sm text-ink-muted">
-          Loading availability…
-        </p>
-      ) : null}
-      <Calendar
-        mode="single"
-        month={monthDate}
-        onMonthChange={(month) =>
-          onMonthChange(month.getFullYear(), month.getMonth() + 1)
+    <Calendar
+      mode="single"
+      month={monthDate}
+      onMonthChange={(month) =>
+        onMonthChange(month.getFullYear(), month.getMonth() + 1)
+      }
+      selected={selected}
+      onSelect={(date) => {
+        if (date) {
+          onSelectDate(toDateKey(date, viewerTimezone));
         }
-        selected={selected}
-        onSelect={(date) => {
-          if (date) {
-            onSelectDate(toDateKey(date, viewerTimezone));
-          }
-        }}
-        disabled={isDayDisabled}
-        showOutsideDays
-        className={cn(loading && "pointer-events-none opacity-60")}
-        components={{ DayButton }}
-      />
-    </div>
+      }}
+      disabled={isDayDisabled}
+      showOutsideDays
+      components={{ DayButton }}
+    />
   );
 }

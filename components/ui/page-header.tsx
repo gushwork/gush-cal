@@ -21,7 +21,12 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <header className={cn(compact ? "mb-4" : "mb-8", className)}>
+    <header
+      className={cn(
+        compact ? "mb-[var(--section-gap)]" : "mb-8",
+        className,
+      )}
+    >
       {backHref && (
         <Link
           href={backHref}
@@ -31,18 +36,15 @@ export function PageHeader({
         </Link>
       )}
       <div className="flex items-start justify-between gap-4">
-        <h1
-          className={cn(
-            "text-title font-display font-semibold tracking-tight text-ink",
-            !compact && "sm:text-3xl",
-          )}
-        >
+        <h1 className="text-title leading-heading font-display font-semibold tracking-tight text-ink">
           {title}
         </h1>
         {actions && <div className="shrink-0">{actions}</div>}
       </div>
       {subtitle && (
-        <p className="mt-2 text-sm text-ink-muted">{subtitle}</p>
+        <p className="prose-measure mt-2 text-sm leading-body text-ink-muted">
+          {subtitle}
+        </p>
       )}
     </header>
   );

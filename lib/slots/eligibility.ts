@@ -74,32 +74,64 @@ export async function buildMeetingCounts(
   slotStart: Date,
   db: DbMeetingCounter,
 ): Promise<Map<string, { daily: number; weekly: number }>> {
+  const weekStart = new Date(slotStart.getTime() - 7 * 24 * 60 * 60_000);
+  const weekEnd = new Date(slotStart.getTime() + 24 * 60 * 60_000);
+  const prefetched = await db.listMeetingStartsForMembers(
+    members.map((member) => member.id),
+    weekStart.toISOString(),
+    weekEnd.toISOString(),
+  );
+
+  return buildMeetingCountsFromPrefetch(members, slotStart, prefetched);
+}
+
+export function buildMeetingCountsFromPrefetch(
+  members: CalendarMember[],
+  slotStart: Date,
+  prefetchedMeetings: Map<string, UtcInstant[]>,
+): Map<string, { daily: number; weekly: number }> {
+  const counts = new Map<string, { daily: number; weekly: number }>();
+
+  for (const member of members) {
+    counts.set(
+      member.id,
+      meetingCountsForSlot(
+        slotStart,
+        prefetchedMeetings.get(member.id) ?? [],
+      ),
+    );
+  }
+
+  return counts;
+}
+
+export function meetingCountsForSlot(
+  slotStart: Date,
+  meetingStarts: UtcInstant[],
+): { daily: number; weekly: number } {
   const dayStart = startOfUtcDay(slotStart);
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60_000);
   const weekStart = new Date(slotStart.getTime() - 7 * 24 * 60 * 60_000);
   const weekEnd = new Date(slotStart.getTime() + 24 * 60 * 60_000);
+  const dayStartMs = dayStart.getTime();
+  const dayEndMs = dayEnd.getTime();
+  const weekStartMs = weekStart.getTime();
+  const weekEndMs = weekEnd.getTime();
 
-  const counts = new Map<string, { daily: number; weekly: number }>();
+  let daily = 0;
+  let weekly = 0;
 
-  await Promise.all(
-    members.map(async (member) => {
-      const [daily, weekly] = await Promise.all([
-        db.countMeetingsForMemberOnDay(
-          member.id,
-          dayStart.toISOString(),
-          dayEnd.toISOString(),
-        ),
-        db.countMeetingsForMember(
-          member.id,
-          weekStart.toISOString(),
-          weekEnd.toISOString(),
-        ),
-      ]);
-      counts.set(member.id, { daily, weekly });
-    }),
-  );
+  for (const start of meetingStarts) {
+    const time = new Date(start).getTime();
+    if (time >= dayStartMs && time < dayEndMs) {
+      daily++;
+    }
+    if (time >= weekStartMs && time < weekEndMs) {
+      weekly++;
+    }
+  }
 
-  return counts;
+  return { daily, weekly };
 }
 
 function startOfUtcDay(date: Date): Date {
@@ -108,15 +140,38 @@ function startOfUtcDay(date: Date): Date {
   );
 }
 
+export function getEligibleMembersSync(
+  ctx: Omit<EligibilityContext, "meetingCounts"> & {
+    prefetchedMeetings: Map<string, UtcInstant[]>;
+  },
+): CalendarMember[] {
+  const meetingCounts = buildMeetingCountsFromPrefetch(
+    ctx.bundle.members,
+    ctx.startsAt,
+    ctx.prefetchedMeetings,
+  );
+  const fullCtx: EligibilityContext = { ...ctx, meetingCounts };
+  return ctx.bundle.members.filter((member) => isMemberEligible(fullCtx, member));
+}
+
 export async function getEligibleMembers(
-  ctx: Omit<EligibilityContext, "meetingCounts"> & { db: DbMeetingCounter },
+  ctx: Omit<EligibilityContext, "meetingCounts"> & {
+    db: DbMeetingCounter;
+    prefetchedMeetings?: Map<string, UtcInstant[]>;
+  },
 ): Promise<CalendarMember[]> {
+  if (ctx.prefetchedMeetings) {
+    return getEligibleMembersSync({
+      ...ctx,
+      prefetchedMeetings: ctx.prefetchedMeetings,
+    });
+  }
+
   const meetingCounts = await buildMeetingCounts(
     ctx.bundle.members,
     ctx.startsAt,
     ctx.db,
   );
-
   const fullCtx: EligibilityContext = { ...ctx, meetingCounts };
 
   return ctx.bundle.members.filter((member) => isMemberEligible(fullCtx, member));

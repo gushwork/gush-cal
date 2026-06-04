@@ -1,6 +1,8 @@
 "use client";
 
-import { useId, useState } from "react";
+import { Globe } from "lucide-react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/ui/cn";
 import type { IanaTimezone } from "@/lib/types";
 
@@ -22,22 +24,6 @@ type TimezoneSelectorProps = {
   onChange: (tz: IanaTimezone) => void;
 };
 
-function GlobeIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      className={className}
-    >
-      <circle cx="12" cy="12" r="9" />
-      <path d="M3 12h18M12 3c2.5 2.7 3.8 6.2 3.8 9s-1.3 6.3-3.8 9M12 3c-2.5 2.7-3.8 6.2-3.8 9s1.3 6.3 3.8 9" />
-    </svg>
-  );
-}
-
 function formatTimezoneLabel(tz: IanaTimezone): string {
   return tz.replace(/_/g, " ");
 }
@@ -54,35 +40,83 @@ function buildTimezoneOptions(value: IanaTimezone): IanaTimezone[] {
 export function TimezoneSelector({ value, onChange }: TimezoneSelectorProps) {
   const [expanded, setExpanded] = useState(false);
   const selectId = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const selectRef = useRef<HTMLSelectElement>(null);
   const options = buildTimezoneOptions(value);
 
+  const close = useCallback(() => setExpanded(false), []);
+
+  useEffect(() => {
+    if (!expanded) return;
+
+    selectRef.current?.focus();
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        close();
+      }
+    }
+
+    function onPointerDown(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        close();
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("mousedown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("mousedown", onPointerDown);
+    };
+  }, [expanded, close]);
+
   return (
-    <div className="relative shrink-0">
+    <div
+      ref={rootRef}
+      className={cn(
+        "relative w-full sm:w-auto sm:shrink-0",
+      )}
+    >
       <button
         type="button"
         aria-expanded={expanded}
-        aria-controls={selectId}
+        aria-controls={`${selectId}-panel`}
+        aria-haspopup="listbox"
         onClick={() => setExpanded((open) => !open)}
         className={cn(
-          "interactive inline-flex max-w-[11rem] items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-primary sm:max-w-none sm:text-sm",
+          "interactive inline-flex w-full items-center justify-center gap-1.5 rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2 text-sm font-medium text-ink transition-colors hover:border-primary sm:max-w-none sm:justify-start",
           expanded && "border-primary ring-2 ring-primary/20",
         )}
       >
-        <GlobeIcon className="h-3.5 w-3.5 shrink-0 text-ink-muted sm:h-4 sm:w-4" />
+        <Icon icon={Globe} size="sm" className="text-ink-muted" />
         <span className="truncate">{formatTimezoneLabel(value)}</span>
       </button>
 
       {expanded ? (
-        <div className="absolute right-0 z-20 mt-2 w-56 rounded-lg border border-border bg-surface p-2 shadow-sm sm:w-64">
+        <div
+          id={`${selectId}-panel`}
+          role="dialog"
+          aria-label="Select timezone"
+          className="absolute right-0 z-20 mt-2 w-full rounded-lg border border-border bg-surface p-2 shadow-[var(--shadow-sm)] sm:w-64"
+        >
           <label htmlFor={selectId} className="sr-only">
             Times shown in
           </label>
           <select
+            ref={selectRef}
             id={selectId}
             value={value}
             onChange={(e) => {
               onChange(e.target.value);
-              setExpanded(false);
+              close();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Tab" && !e.shiftKey) {
+                e.preventDefault();
+                selectRef.current?.focus();
+              }
             }}
             className="w-full rounded-lg border border-border bg-paper px-3 py-2 text-sm text-ink focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           >

@@ -1,5 +1,8 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/ui/cn";
 import type { IanaTimezone, Slot } from "@/lib/types";
 
@@ -9,7 +12,8 @@ type SlotPickerProps = {
   onSelect: (startsAt: string) => void;
   loading?: boolean;
   viewerTimezone: IanaTimezone;
-  showPanelistCount?: boolean;
+  showMemberCount?: boolean;
+  onBackToDate?: () => void;
 };
 
 function formatSlotTime(startsAt: string, timezone: string): string {
@@ -20,23 +24,45 @@ function formatSlotTime(startsAt: string, timezone: string): string {
   }).format(new Date(startsAt));
 }
 
+function memberAvailabilityCopy(count: number): string {
+  return `${count} member${count === 1 ? "" : "s"} free`;
+}
+
 export function SlotPicker({
   slots,
   selectedStartsAt,
   onSelect,
   loading,
   viewerTimezone,
-  showPanelistCount = true,
+  showMemberCount = true,
+  onBackToDate,
 }: SlotPickerProps) {
   if (loading) {
-    return <p className="text-sm text-ink-muted">Loading available times…</p>;
+    return (
+      <div
+        className="grid grid-cols-3 gap-2 sm:grid-cols-4"
+        aria-busy="true"
+        aria-label="Loading times"
+      >
+        {Array.from({ length: 8 }, (_, i) => (
+          <Skeleton key={i} className="h-14 rounded-[var(--radius-pill)]" />
+        ))}
+      </div>
+    );
   }
 
   if (slots.length === 0) {
     return (
-      <p className="text-sm text-ink-muted">
-        No available times on this day. Pick another date or duration.
-      </p>
+      <div className="space-y-3">
+        <p className="text-sm text-ink-muted">
+          No available times on this day. Try another date or duration.
+        </p>
+        {onBackToDate ? (
+          <Button type="button" variant="link" onClick={onBackToDate}>
+            Choose another date
+          </Button>
+        ) : null}
+      </div>
     );
   }
 
@@ -45,30 +71,32 @@ export function SlotPicker({
       {slots.map((slot) => {
         const selected = slot.startsAt === selectedStartsAt;
         return (
-          <button
+          <Chip
             key={slot.startsAt}
-            type="button"
-            aria-pressed={selected}
+            shape="pill"
+            size="md"
+            selected={selected}
             onClick={() => onSelect(slot.startsAt)}
             className={cn(
-              "interactive rounded-full px-3 py-2 text-sm font-medium transition-colors",
-              selected
-                ? "bg-primary text-white"
-                : "bg-primary-soft text-primary hover:bg-primary/15",
+              "h-auto min-h-[3rem] w-full flex-col gap-0.5 py-2",
+              !selected && "bg-primary-soft text-primary hover:bg-primary/15",
             )}
           >
-            <span className="block truncate">{formatSlotTime(slot.startsAt, viewerTimezone)}</span>
+            <span className="block w-full truncate font-medium">
+              {formatSlotTime(slot.startsAt, viewerTimezone)}
+            </span>
             <span
               className={cn(
-                "mt-0.5 block truncate text-xs font-normal",
-                selected ? "text-white/80" : "text-ink-muted",
+                "block w-full truncate text-xs font-normal",
+                selected ? "text-white/85" : "text-ink-muted",
               )}
             >
               {slot.durationMinutes} min
-              {showPanelistCount &&
-                ` · ${slot.eligibleMemberCount} available`}
+              {showMemberCount
+                ? ` · ${memberAvailabilityCopy(slot.eligibleMemberCount)}`
+                : ""}
             </span>
-          </button>
+          </Chip>
         );
       })}
     </div>

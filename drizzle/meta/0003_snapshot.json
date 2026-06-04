@@ -1,0 +1,461 @@
+{
+  "id": "2308173f-a952-415a-8e36-0b61bc02bcee",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.calendar_members": {
+      "name": "calendar_members",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "calendar_id": {
+          "name": "calendar_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "max_per_day_override": {
+          "name": "max_per_day_override",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "max_per_week_override": {
+          "name": "max_per_week_override",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "working_hours_override": {
+          "name": "working_hours_override",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "calendar_members_calendar_id_idx": {
+          "name": "calendar_members_calendar_id_idx",
+          "columns": [
+            {
+              "expression": "calendar_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "calendar_members_calendar_id_calendars_id_fk": {
+          "name": "calendar_members_calendar_id_calendars_id_fk",
+          "tableFrom": "calendar_members",
+          "tableTo": "calendars",
+          "columnsFrom": [
+            "calendar_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.calendars": {
+      "name": "calendars",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "scheduler_id": {
+          "name": "scheduler_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "booking_window_days": {
+          "name": "booking_window_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "min_notice_hours": {
+          "name": "min_notice_hours",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "default_max_per_day": {
+          "name": "default_max_per_day",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "default_max_per_week": {
+          "name": "default_max_per_week",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "default_working_hours": {
+          "name": "default_working_hours",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'UTC'"
+        },
+        "durations": {
+          "name": "durations",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "calendars_scheduler_id_schedulers_id_fk": {
+          "name": "calendars_scheduler_id_schedulers_id_fk",
+          "tableFrom": "calendars",
+          "tableTo": "schedulers",
+          "columnsFrom": [
+            "scheduler_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "calendars_slug_unique": {
+          "name": "calendars_slug_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "slug"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.meetings": {
+      "name": "meetings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "calendar_id": {
+          "name": "calendar_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "assigned_member_id": {
+          "name": "assigned_member_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starts_at": {
+          "name": "starts_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "duration_minutes": {
+          "name": "duration_minutes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invitees": {
+          "name": "invitees",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "google_event_id": {
+          "name": "google_event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "meet_link": {
+          "name": "meet_link",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "booked_by": {
+          "name": "booked_by",
+          "type": "booked_by",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "guest_email": {
+          "name": "guest_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "meetings_calendar_starts_at_idx": {
+          "name": "meetings_calendar_starts_at_idx",
+          "columns": [
+            {
+              "expression": "calendar_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "starts_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "meetings_member_starts_at_idx": {
+          "name": "meetings_member_starts_at_idx",
+          "columns": [
+            {
+              "expression": "assigned_member_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "starts_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "meetings_calendar_id_calendars_id_fk": {
+          "name": "meetings_calendar_id_calendars_id_fk",
+          "tableFrom": "meetings",
+          "tableTo": "calendars",
+          "columnsFrom": [
+            "calendar_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "meetings_assigned_member_id_calendar_members_id_fk": {
+          "name": "meetings_assigned_member_id_calendar_members_id_fk",
+          "tableFrom": "meetings",
+          "tableTo": "calendar_members",
+          "columnsFrom": [
+            "assigned_member_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.schedulers": {
+      "name": "schedulers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "google_sub": {
+          "name": "google_sub",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "schedulers_email_unique": {
+          "name": "schedulers_email_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "email"
+          ]
+        },
+        "schedulers_google_sub_unique": {
+          "name": "schedulers_google_sub_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "google_sub"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.booked_by": {
+      "name": "booked_by",
+      "schema": "public",
+      "values": [
+        "scheduler",
+        "guest"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

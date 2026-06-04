@@ -2,12 +2,15 @@ import type { AppDeps } from "@/lib/deps";
 import { getDb } from "@/lib/db/client";
 import { toMeeting } from "@/lib/db/mappers";
 import { meetings } from "@/lib/db/schema";
+import { violatesMinNotice } from "@/lib/slots/validate-min-notice";
 import type {
   BookedBy,
   CalendarBundle,
   ConfirmBookingBody,
   Meeting,
 } from "@/lib/types";
+
+export const MIN_NOTICE_VIOLATION = "MIN_NOTICE_VIOLATION" as const;
 
 export type ConfirmBookingInput = {
   bundle: CalendarBundle;
@@ -17,7 +20,10 @@ export type ConfirmBookingInput = {
 
 export type ConfirmBookingResult =
   | { ok: true; meeting: Meeting }
-  | { ok: false; code: "SLOT_UNAVAILABLE" | "GOOGLE_ERROR" };
+  | {
+      ok: false;
+      code: "SLOT_UNAVAILABLE" | "GOOGLE_ERROR" | typeof MIN_NOTICE_VIOLATION;
+    };
 
 function uniqueAttendeeEmails(memberEmail: string, invitees: string[]): string[] {
   const seen = new Set<string>();
@@ -60,6 +66,17 @@ export async function confirmBooking(
   input: ConfirmBookingInput,
 ): Promise<ConfirmBookingResult> {
   const { bundle, body, bookedBy } = input;
+
+  if (
+    bookedBy === "guest" &&
+    violatesMinNotice({
+      startsAt: body.startsAt,
+      minNoticeHours: bundle.minNoticeHours,
+      viewerTimezone: body.viewerTimezone,
+    })
+  ) {
+    return { ok: false, code: MIN_NOTICE_VIOLATION };
+  }
 
   const assignment = await deps.slots.assignMember({
     bundle,

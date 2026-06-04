@@ -77,6 +77,9 @@ function createDbMeetingCounterOrStub(): DbMeetingCounter {
       async countMeetingsForMemberOnDay() {
         return 0;
       },
+      async listMeetingStartsForMembers(memberIds) {
+        return new Map(memberIds.map((memberId) => [memberId, []]));
+      },
     };
   }
   return createMeetingCounter();

@@ -93,6 +93,22 @@ export function endOfLocalDay(date: Date, timeZone: string): Date {
   return new Date(nextDayStart.getTime() - 1);
 }
 
+/** Add wall-clock hours in the given IANA timezone (handles day/month overflow). */
+export function addLocalHours(date: Date, hours: number, timeZone: string): Date {
+  if (hours === 0) {
+    return date;
+  }
+  const parts = getLocalDateTimeParts(date, timeZone);
+  const totalMinutes = parts.hour * 60 + parts.minute + hours * 60;
+  const dayOffset = Math.floor(totalMinutes / (24 * 60));
+  const minuteOfDay = ((totalMinutes % (24 * 60)) + 24 * 60) % (24 * 60);
+  const hour = Math.floor(minuteOfDay / 60);
+  const minute = minuteOfDay % 60;
+  const anchor = addLocalDays(date, dayOffset, timeZone);
+  const { year, month, day } = getLocalDateParts(anchor, timeZone);
+  return zonedInstant(year, month, day, hour, minute, timeZone);
+}
+
 /** Add calendar days in the given IANA timezone (handles month/year overflow). */
 export function addLocalDays(date: Date, days: number, timeZone: string): Date {
   const { year, month, day } = getLocalDateParts(

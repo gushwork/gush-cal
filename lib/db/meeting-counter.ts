@@ -1,4 +1,4 @@
-import { and, count, eq, gte, lt } from "drizzle-orm";
+import { and, count, eq, gte, inArray, lt } from "drizzle-orm";
 import type { DbMeetingCounter } from "@/lib/ports/meeting-counter";
 import type { UtcInstant } from "@/lib/types";
 import { getDb, type AppDatabase } from "./client";
@@ -32,6 +32,40 @@ export function createMeetingCounter(database?: AppDatabase): DbMeetingCounter {
       dayEnd: UtcInstant,
     ): Promise<number> {
       return this.countMeetingsForMember(memberId, dayStart, dayEnd);
+    },
+
+    async listMeetingStartsForMembers(
+      memberIds: string[],
+      windowStart: UtcInstant,
+      windowEnd: UtcInstant,
+    ): Promise<Map<string, UtcInstant[]>> {
+      const byMember = new Map<string, UtcInstant[]>(
+        memberIds.map((memberId) => [memberId, []]),
+      );
+
+      if (memberIds.length === 0) {
+        return byMember;
+      }
+
+      const rows = await db
+        .select({
+          memberId: meetings.assignedMemberId,
+          startsAt: meetings.startsAt,
+        })
+        .from(meetings)
+        .where(
+          and(
+            inArray(meetings.assignedMemberId, memberIds),
+            gte(meetings.startsAt, windowStart),
+            lt(meetings.startsAt, windowEnd),
+          ),
+        );
+
+      for (const row of rows) {
+        byMember.get(row.memberId)?.push(row.startsAt);
+      }
+
+      return byMember;
     },
   };
 }

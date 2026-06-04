@@ -12,6 +12,7 @@ import {
   validateTimezone,
   validateWorkingHours,
 } from "@/lib/working-hours/validate";
+import { validateMinNoticeHours } from "@/lib/calendar/validate-min-notice-hours";
 import { getDb } from "@/lib/db/client";
 import { toCalendar } from "@/lib/db/mappers";
 import { generateCalendarSlug } from "@/lib/db/slug";
@@ -63,6 +64,11 @@ export async function POST(request: Request) {
     return jsonError(hoursError, 400);
   }
 
+  const noticeError = validateMinNoticeHours(body.minNoticeHours);
+  if (noticeError) {
+    return jsonError(noticeError, 400);
+  }
+
   const [row] = await getDb()
     .insert(calendars)
     .values({
@@ -70,7 +76,7 @@ export async function POST(request: Request) {
       name: body.name,
       slug: generateCalendarSlug(),
       bookingWindowDays: body.bookingWindowDays,
-      minNoticeHours: 0,
+      minNoticeHours: body.minNoticeHours,
       defaultMaxPerDay: body.defaultMaxPerDay,
       defaultMaxPerWeek: body.defaultMaxPerWeek,
       defaultWorkingHours,

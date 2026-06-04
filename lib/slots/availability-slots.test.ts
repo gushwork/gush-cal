@@ -8,6 +8,7 @@ import {
 import type { DbMeetingCounter } from "@/lib/ports/meeting-counter";
 import { createGoogleCalendarStub } from "@/lib/stubs/google-calendar-stub";
 import { createSlotEnginePort } from "@/lib/slots";
+import { getBookingWindow } from "@/lib/slots/time";
 import type { CalendarBundle } from "@/lib/types";
 
 const IST = "Asia/Kolkata";
@@ -59,25 +60,55 @@ const emptyDb: DbMeetingCounter = {
   async countMeetingsForMemberOnDay() {
     return 0;
   },
+  async listMeetingStartsForMembers(memberIds) {
+    return new Map(memberIds.map((memberId) => [memberId, []]));
+  },
 };
 
 describe("availability grid bookable path (June 4 IST)", () => {
-  it("guest policy ignores stored minNoticeHours (e.g. 24h)", async () => {
+  it("guest policy excludes today when minNoticeHours is 24", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-06-03T14:00:00.000Z")); // 19:30 IST
+    vi.setSystemTime(new Date("2026-06-03T14:00:00.000Z")); // 19:30 IST Wed
 
     const engine = createSlotEnginePort({
       google: createGoogleCalendarStub(),
       db: emptyDb,
     });
+    const now = new Date();
+    const todayStart = startOfLocalDay(now, IST);
+    const todayEnd = endOfLocalDay(now, IST);
+
+    const todaySlots = await engine.getAvailableSlots({
+      bundle: makeBundle({ minNoticeHours: 24 }),
+      durationMinutes: 60,
+      rangeStart: toUtcInstant(todayStart),
+      rangeEnd: toUtcInstant(todayEnd),
+      viewerTimezone: IST,
+      bookingPolicy: "guest",
+    });
+
+    expect(todaySlots.length).toBe(0);
+    vi.useRealTimers();
+  });
+
+  it("guest policy only returns tomorrow slots on or after earliest notice", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-03T04:30:00.000Z")); // Wed 10:00 IST
+
+    const engine = createSlotEnginePort({
+      google: createGoogleCalendarStub(),
+      db: emptyDb,
+    });
+    const now = new Date();
+    const { earliest } = getBookingWindow(now, 4, 14, IST);
     const tomorrowStart = startOfLocalDay(
-      addLocalDays(new Date(), 1, IST),
+      addLocalDays(now, 1, IST),
       IST,
     );
-    const tomorrowEnd = endOfLocalDay(addLocalDays(new Date(), 1, IST), IST);
+    const tomorrowEnd = endOfLocalDay(addLocalDays(now, 1, IST), IST);
 
     const slots = await engine.getAvailableSlots({
-      bundle: makeBundle({ minNoticeHours: 24 }),
+      bundle: makeBundle({ minNoticeHours: 4 }),
       durationMinutes: 60,
       rangeStart: toUtcInstant(tomorrowStart),
       rangeEnd: toUtcInstant(tomorrowEnd),
@@ -86,30 +117,33 @@ describe("availability grid bookable path (June 4 IST)", () => {
     });
 
     expect(slots.length).toBeGreaterThan(0);
+    expect(
+      slots.every(
+        (slot) => new Date(slot.startsAt).getTime() >= earliest.getTime(),
+      ),
+    ).toBe(true);
     vi.useRealTimers();
   });
 
-  it("guest policy with bookingWindowDays=1 still includes June 4 at 19:30 IST", async () => {
+  it("admin policy ignores minNoticeHours within requested range", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-06-03T14:00:00.000Z"));
+    vi.setSystemTime(new Date("2026-06-03T04:30:00.000Z")); // Wed 10:00 IST
 
     const engine = createSlotEnginePort({
       google: createGoogleCalendarStub(),
       db: emptyDb,
     });
-    const tomorrowStart = startOfLocalDay(
-      addLocalDays(new Date(), 1, IST),
-      IST,
-    );
-    const tomorrowEnd = endOfLocalDay(addLocalDays(new Date(), 1, IST), IST);
+    const now = new Date();
+    const todayStart = startOfLocalDay(now, IST);
+    const todayEnd = endOfLocalDay(now, IST);
 
     const slots = await engine.getAvailableSlots({
-      bundle: makeBundle({ bookingWindowDays: 1, minNoticeHours: 24 }),
+      bundle: makeBundle({ minNoticeHours: 24 }),
       durationMinutes: 60,
-      rangeStart: toUtcInstant(tomorrowStart),
-      rangeEnd: toUtcInstant(tomorrowEnd),
+      rangeStart: toUtcInstant(todayStart),
+      rangeEnd: toUtcInstant(todayEnd),
       viewerTimezone: IST,
-      bookingPolicy: "guest",
+      bookingPolicy: "admin",
     });
 
     expect(slots.length).toBeGreaterThan(0);

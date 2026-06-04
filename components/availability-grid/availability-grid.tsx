@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   CalendarBundle,
@@ -8,11 +7,12 @@ import type {
   MemberBusyBlock,
   Slot,
 } from "@/lib/types";
-import { Button } from "@/components/ui";
+import { AlertBanner, Skeleton } from "@/components/ui";
 import { toDateKey } from "@/components/booking/group-slots-by-date";
+import { AvailabilityGridToolbar } from "./availability-grid-toolbar";
 import { BookableOverlay } from "./bookable-overlay";
+import { GridHourLines } from "./grid-hour-lines";
 import { fetchBookableSlots } from "./fetch-bookable-slots";
-import { GridLegend } from "./grid-legend";
 import { MemberColumn } from "./member-column";
 import {
   addLocalDays,
@@ -21,13 +21,17 @@ import {
   formatLocalDayLabel,
   getViewerTimezone,
   gridHourLabels,
+  GRID_COLUMN_HEADER_HEIGHT_PX,
   GRID_TOTAL_MINUTES,
   startOfLocalDay,
   startOfLocalWeek,
   toUtcInstant,
+  blockPositionPercent,
 } from "./time-utils";
 
 type ViewMode = "day" | "week";
+
+const LOAD_DEBOUNCE_MS = 300;
 
 type AvailabilityGridProps = {
   calendarId: string;
@@ -38,20 +42,61 @@ function memberDisplayName(member: CalendarMember): string {
   return member.displayName ?? member.email;
 }
 
-function ToggleGroup({
-  children,
-  label,
-}: {
-  children: React.ReactNode;
-  label: string;
-}) {
+function nowLinePercent(
+  anchorDate: Date,
+  rangeStart: string,
+  timeZone: string,
+): number | null {
+  const todayKey = toDateKey(new Date(), timeZone);
+  const anchorKey = toDateKey(anchorDate, timeZone);
+  if (todayKey !== anchorKey) {
+    return null;
+  }
+
+  const now = new Date();
+  const end = new Date(now.getTime() + 60_000).toISOString();
+  const position = blockPositionPercent(
+    now.toISOString(),
+    end,
+    rangeStart,
+    timeZone,
+  );
+  return position?.top ?? null;
+}
+
+function AvailabilityGridSkeleton({ viewMode }: { viewMode: ViewMode }) {
+  if (viewMode === "week") {
+    return (
+      <div
+        className="grid min-h-[12rem] flex-1 grid-cols-7 gap-px bg-border p-2"
+        data-testid="grid-skeleton"
+        aria-busy
+        aria-label="Loading availability"
+      >
+        {Array.from({ length: 7 }, (_, index) => (
+          <div key={index} className="flex flex-col gap-2 bg-surface p-2">
+            <Skeleton className="mx-auto h-4 w-16" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div
-      className="inline-flex rounded-lg border border-border bg-surface p-0.5"
-      role="group"
-      aria-label={label}
+      className="flex min-h-[12rem] flex-1 gap-2 p-2"
+      data-testid="grid-skeleton"
+      aria-busy
+      aria-label="Loading availability"
     >
-      {children}
+      <Skeleton className="h-full w-14 shrink-0" />
+      <div className="flex flex-1 gap-2">
+        <Skeleton className="h-full flex-1" />
+        <Skeleton className="h-full flex-1" />
+        <Skeleton className="h-full w-28 shrink-0" />
+      </div>
     </div>
   );
 }
@@ -65,6 +110,9 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
   );
   const [busyBlocks, setBusyBlocks] = useState<MemberBusyBlock[]>([]);
   const [bookableSlots, setBookableSlots] = useState<Slot[]>([]);
+  const [revealedWeekDays, setRevealedWeekDays] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [configWarning, setConfigWarning] = useState<string | null>(null);
@@ -88,6 +136,7 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
     setLoading(true);
     setError(null);
     setConfigWarning(null);
+    setRevealedWeekDays(new Set());
 
     try {
       const params = new URLSearchParams({
@@ -120,15 +169,40 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
         viewerTimezone: timeZone,
       });
       setBookableSlots(slots);
+
+      if (viewMode === "week") {
+        const weekStart = startOfLocalWeek(anchorDate, timeZone);
+        const days = Array.from({ length: 7 }, (_, index) =>
+          addLocalDays(weekStart, index, timeZone),
+        );
+        days.forEach((day, index) => {
+          const dayKey = toDateKey(day, timeZone);
+          window.setTimeout(() => {
+            setRevealedWeekDays((current) => new Set(current).add(dayKey));
+          }, index * 40);
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load data");
     } finally {
       setLoading(false);
     }
-  }, [calendarId, durationMinutes, rangeEndIso, rangeStartIso, timeZone]);
+  }, [
+    anchorDate,
+    calendarId,
+    durationMinutes,
+    rangeEndIso,
+    rangeStartIso,
+    timeZone,
+    viewMode,
+  ]);
 
   useEffect(() => {
-    void loadData();
+    const handle = window.setTimeout(() => {
+      void loadData();
+    }, LOAD_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(handle);
   }, [loadData]);
 
   const busyByMemberId = useMemo(() => {
@@ -149,110 +223,46 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
     );
   }, [anchorDate, timeZone, viewMode]);
 
-  function shiftAnchor(days: number) {
-    setAnchorDate((current) => addLocalDays(current, days, timeZone));
-  }
-
   const rangeLabel =
     viewMode === "day"
       ? formatLocalDayLabel(anchorDate, timeZone)
       : `${formatLocalDayLabel(range.start, timeZone)} – ${formatLocalDayLabel(range.end, timeZone)}`;
 
-  const shiftDays = viewMode === "day" ? 1 : 7;
+  const nowPercent = nowLinePercent(anchorDate, rangeStartIso, timeZone);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2 py-[var(--page-py)]">
-      <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2">
-        <Link
-          href={`/calendars/${calendarId}`}
-          className="interactive shrink-0 text-xs text-ink-muted hover:text-primary"
-        >
-          ← Calendar
-        </Link>
-        <h1 className="min-w-0 truncate text-title text-ink">{bundle.name}</h1>
-
-        <div className="flex items-center gap-1">
-          <Button
-            variant="secondary"
-            size="sm"
-            className="px-2"
-            aria-label={viewMode === "day" ? "Previous day" : "Previous week"}
-            onClick={() => shiftAnchor(-shiftDays)}
-          >
-            ←
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setAnchorDate(new Date())}>
-            Today
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="px-2"
-            aria-label={viewMode === "day" ? "Next day" : "Next week"}
-            onClick={() => shiftAnchor(shiftDays)}
-          >
-            →
-          </Button>
-          <span className="px-1 text-sm font-medium text-ink">{rangeLabel}</span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-          <ToggleGroup label="View mode">
-            <Button
-              variant={viewMode === "day" ? "primary" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("day")}
-              data-testid="view-day"
-            >
-              Day
-            </Button>
-            <Button
-              variant={viewMode === "week" ? "primary" : "ghost"}
-              size="sm"
-              onClick={() => setViewMode("week")}
-              data-testid="view-week"
-            >
-              Week
-            </Button>
-          </ToggleGroup>
-
-          <ToggleGroup label="Meeting duration">
-            {bundle.durations.map((duration) => (
-              <Button
-                key={duration}
-                variant={durationMinutes === duration ? "primary" : "ghost"}
-                size="sm"
-                onClick={() => setDurationMinutes(duration)}
-                data-testid={`duration-${duration}`}
-              >
-                {duration}m
-              </Button>
-            ))}
-          </ToggleGroup>
-
-          <GridLegend className="hidden md:inline-flex" />
-        </div>
-      </header>
-
-      <GridLegend className="shrink-0 md:hidden" />
+      <AvailabilityGridToolbar
+        calendarId={calendarId}
+        calendarName={bundle.name}
+        timeZone={timeZone}
+        rangeLabel={rangeLabel}
+        viewMode={viewMode}
+        durationMinutes={durationMinutes}
+        durations={bundle.durations}
+        onViewModeChange={setViewMode}
+        onDurationChange={setDurationMinutes}
+        onToday={() => setAnchorDate(new Date())}
+        onShiftAnchor={(days) =>
+          setAnchorDate((current) => addLocalDays(current, days, timeZone))
+        }
+      />
 
       {configWarning ? (
-        <p className="shrink-0 rounded-lg border border-primary/40 bg-primary-soft px-3 py-2 text-sm text-ink">
+        <AlertBanner variant="warning" className="shrink-0">
           {configWarning}
-        </p>
+        </AlertBanner>
       ) : null}
 
       {error ? (
-        <p className="shrink-0 rounded-lg border border-destructive/40 bg-destructive-soft px-3 py-2 text-sm text-destructive">
+        <AlertBanner variant="error" className="shrink-0">
           {error}
-        </p>
+        </AlertBanner>
       ) : null}
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-surface">
+      <div className="-mx-[var(--page-px)] flex min-h-0 flex-1 flex-col overflow-hidden border-y border-border bg-surface sm:mx-0 sm:rounded-lg sm:border">
         {loading ? (
-          <div className="flex flex-1 items-center justify-center text-sm text-ink-muted">
-            Loading availability…
-          </div>
+          <AvailabilityGridSkeleton viewMode={viewMode} />
         ) : viewMode === "week" ? (
           <div
             className="min-h-0 flex-1 overflow-auto"
@@ -266,18 +276,27 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
                   (slot) =>
                     toDateKey(new Date(slot.startsAt), timeZone) === dayKey,
                 );
+                const revealed = revealedWeekDays.has(dayKey);
 
                 return (
-                  <div key={day.toISOString()} className="min-w-0">
+                  <div key={day.toISOString()} className="flex min-w-0 flex-col">
                     <div className="sticky top-0 z-10 border-b border-border bg-paper px-2 py-2 text-center text-xs font-medium text-ink">
                       {formatLocalDayLabel(day, timeZone)}
                     </div>
-                    <BookableOverlay
-                      slots={daySlots}
-                      rangeStart={dayStart}
-                      timeZone={timeZone}
-                      compact
-                    />
+                    {revealed ? (
+                      <BookableOverlay
+                        calendarId={calendarId}
+                        slots={daySlots}
+                        rangeStart={dayStart}
+                        timeZone={timeZone}
+                        compact
+                      />
+                    ) : (
+                      <div className="flex flex-1 flex-col gap-2 p-2">
+                        <Skeleton className="h-20 w-full" />
+                        <Skeleton className="h-12 w-full" />
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -288,8 +307,8 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
             <div className="flex min-w-max">
               <div className="sticky left-0 z-20 w-14 shrink-0 border-r border-border bg-paper">
                 <div
-                  className="sticky top-0 z-30 border-b border-border bg-paper py-2 text-center text-xs font-medium text-ink-muted"
-                  style={{ height: "52px" }}
+                  className="sticky top-0 z-30 flex items-center justify-center border-b border-border bg-paper text-center text-xs font-medium text-ink-muted"
+                  style={{ height: `${GRID_COLUMN_HEADER_HEIGHT_PX}px` }}
                 >
                   Time
                 </div>
@@ -297,10 +316,18 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
                   className="relative"
                   style={{ height: `${GRID_TOTAL_MINUTES}px` }}
                 >
+                  <GridHourLines />
+                  {nowPercent !== null && nowPercent !== undefined ? (
+                    <div
+                      className="pointer-events-none absolute inset-x-0 z-20 border-t-2 border-primary"
+                      style={{ top: `${nowPercent}%` }}
+                      aria-hidden
+                    />
+                  ) : null}
                   {gridHourLabels().map((label, index) => (
                     <div
                       key={label}
-                      className="absolute right-2 -translate-y-1/2 text-[10px] text-ink-muted"
+                      className="absolute right-2 z-10 -translate-y-1/2 text-[10px] text-ink-muted"
                       style={{
                         top: `${(index / (gridHourLabels().length - 1)) * 100}%`,
                       }}
@@ -311,7 +338,18 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
                 </div>
               </div>
 
-              <div className="flex min-w-0 flex-1">
+              <div className="relative flex min-w-0 flex-1">
+                {nowPercent !== null && nowPercent !== undefined ? (
+                  <div
+                    className="pointer-events-none absolute inset-x-0 z-30 border-t-2 border-primary"
+                    style={{
+                      top: `calc(${GRID_COLUMN_HEADER_HEIGHT_PX}px + ${GRID_TOTAL_MINUTES}px * ${nowPercent} / 100)`,
+                    }}
+                    data-testid="today-now-line"
+                    aria-hidden
+                  />
+                ) : null}
+
                 {bundle.members.map((member) => {
                   const busy = busyByMemberId.get(member.id) ?? {
                     memberId: member.id,
@@ -332,6 +370,7 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
                 })}
 
                 <BookableOverlay
+                  calendarId={calendarId}
                   slots={bookableSlots}
                   rangeStart={rangeStartIso}
                   timeZone={timeZone}
@@ -343,14 +382,11 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
       </div>
 
       {!loading && bookableSlots.length === 0 ? (
-        <p
-          className="shrink-0 text-xs text-ink-muted"
-          data-testid="no-bookable-hint"
-        >
+        <AlertBanner variant="info" className="shrink-0" data-testid="no-bookable-hint">
           No pooled bookable slots in this range. Check booking window (
           {bundle.bookingWindowDays} days), working hours, duration (
-          {durationMinutes}m), and caps. Times use {timeZone}.
-        </p>
+          {durationMinutes}m), and member caps. Times use {timeZone}.
+        </AlertBanner>
       ) : null}
     </div>
   );

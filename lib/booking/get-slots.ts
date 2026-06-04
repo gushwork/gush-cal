@@ -33,6 +33,7 @@ export async function getAvailableSlotsForCalendar(
     rangeStart: params.rangeStart,
     rangeEnd: params.rangeEnd,
     viewerTimezone: params.viewerTimezone,
+    bookingPolicy: cacheScope === "public" ? "guest" : "admin",
   });
 
   setCachedSlots(key, slots);

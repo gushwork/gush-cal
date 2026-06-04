@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { CopyLinkButton } from "@/components/calendar-admin/copy-link-button";
+import { Button } from "@/components/ui";
 import { cn } from "@/lib/ui/cn";
-
-const linkButtonClassName =
-  "interactive inline-flex cursor-pointer items-center justify-center rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink hover:bg-primary-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2";
+import { CalendarClock, Clock, Video } from "lucide-react";
 
 export type CalendarActionBarProps = {
   calendarId: string;
@@ -28,21 +27,24 @@ export function CalendarActionBar({
       )}
     >
       <CopyLinkButton url={bookingUrl} variant="primary" size="sm" />
-      <Link href={`/calendars/${calendarId}/book`} className={linkButtonClassName}>
-        Book
-      </Link>
-      <Link
-        href={`/calendars/${calendarId}/availability`}
-        className={linkButtonClassName}
-      >
-        Availability
-      </Link>
-      <Link
-        href={`/calendars/${calendarId}/meetings`}
-        className={linkButtonClassName}
-      >
-        Meetings
-      </Link>
+      <Button asChild variant="secondary" size="sm" className="gap-1.5">
+        <Link href={`/calendars/${calendarId}/book`}>
+          <Video className="h-4 w-4" aria-hidden />
+          Book
+        </Link>
+      </Button>
+      <Button asChild variant="secondary" size="sm" className="gap-1.5">
+        <Link href={`/calendars/${calendarId}/availability`}>
+          <Clock className="h-4 w-4" aria-hidden />
+          Availability
+        </Link>
+      </Button>
+      <Button asChild variant="secondary" size="sm" className="gap-1.5">
+        <Link href={`/calendars/${calendarId}/meetings`}>
+          <CalendarClock className="h-4 w-4" aria-hidden />
+          Meetings
+        </Link>
+      </Button>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { cn } from "@/lib/ui/cn";
+import { Chip } from "./chip";
 
 export type DurationChipProps = {
   value: number;
@@ -14,20 +14,14 @@ export function DurationChip({
   disabled = false,
 }: DurationChipProps) {
   return (
-    <button
-      type="button"
+    <Chip
+      selected={selected}
       disabled={disabled}
-      aria-pressed={selected}
+      shape="pill"
       onClick={() => onSelect(value)}
-      className={cn(
-        "interactive inline-flex cursor-pointer items-center justify-center rounded-full border px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
-        selected
-          ? "border-primary bg-primary text-white"
-          : "border-border bg-surface text-ink hover:border-primary hover:bg-primary-soft",
-      )}
     >
       {value} min
-    </button>
+    </Chip>
   );
 }
 

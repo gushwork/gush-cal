@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
 import { renderToStaticMarkup } from "react-dom/server";
 import { BookingFlow } from "./booking-flow";
 import { BookingStepper } from "./booking-stepper";
@@ -27,7 +31,8 @@ describe("BookingSuccessPanel", () => {
     expect(html).toContain("Meeting booked");
     expect(html).toContain("Intro call");
     expect(html).toContain("bg-primary-soft");
-    expect(html).toContain("animate-step-in");
+    expect(html).toContain("animate-pop-in");
+    expect(html).toContain("animate-fade-up");
     expect(html).toContain("https://meet.google.com/abc-defg-hij");
     expect(html).toContain("Join Google Meet");
     expect(html).toContain("Add to Google Calendar");
@@ -57,7 +62,7 @@ describe("TimezoneSelector", () => {
       <TimezoneSelector value="UTC" onChange={() => {}} />,
     );
 
-    expect(html).toContain("rounded-full");
+    expect(html).toContain("rounded-[var(--radius-control)]");
     expect(html).toContain('aria-expanded="false"');
     expect(html).toContain("UTC");
   });
@@ -87,7 +92,7 @@ describe("BookingFlow", () => {
 
     expect(html).toContain("md:flex-row");
     expect(html).toContain('aria-label="Duration"');
-    expect(html).toContain("Choose duration");
+    expect(html).toContain("Duration");
     expect(html).toContain("sticky bottom-0");
     expect(html).toContain("Continue");
     expect(html).not.toContain("DatePickerMonth");
@@ -105,6 +110,6 @@ describe("BookingFlow", () => {
       />,
     );
 
-    expect(html).not.toContain("You'll receive");
+    expect(html).not.toContain("You&apos;ll receive");
   });
 });

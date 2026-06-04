@@ -1,13 +1,23 @@
+export { AlertBanner } from "./alert-banner";
+export type { AlertBannerProps, AlertBannerVariant } from "./alert-banner";
+export { Avatar } from "./avatar";
+export type { AvatarProps } from "./avatar";
 export { Badge } from "./badge";
 export { Button } from "./button";
 export type { ButtonProps, ButtonSize, ButtonVariant } from "./button";
 export { Card } from "./card";
+export { Chip } from "./chip";
+export type { ChipProps, ChipShape } from "./chip";
 export { Dialog } from "./dialog";
 export type { DialogProps } from "./dialog";
 export { DurationChip, DurationChipGroup } from "./duration-chip";
 export type { DurationChipGroupProps, DurationChipProps } from "./duration-chip";
 export { EmptyState } from "./empty-state";
 export type { EmptyStateProps } from "./empty-state";
+export { FormField } from "./form-field";
+export type { FormFieldProps } from "./form-field";
+export { Icon } from "./icon";
+export type { IconProps } from "./icon";
 export { Input } from "./input";
 export { Label } from "./label";
 export { PageHeader } from "./page-header";
@@ -17,3 +27,4 @@ export type { SkeletonProps } from "./skeleton";
 export { Stepper } from "./stepper";
 export type { BookingStepId, StepperProps, StepperStep } from "./stepper";
 export { Textarea } from "./textarea";
+

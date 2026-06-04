@@ -1,5 +1,6 @@
 import {
   addLocalDays,
+  addLocalHours,
   endOfLocalDay,
   startOfLocalDay,
 } from "@/lib/datetime/local-day";
@@ -21,7 +22,10 @@ export function getBookingWindow(
   bookingWindowDays: number,
   viewerTimezone?: string,
 ): { earliest: Date; latest: Date } {
-  const earliest = addMinutes(now, minNoticeHours * 60);
+  const earliest =
+    viewerTimezone && minNoticeHours > 0
+      ? addLocalHours(now, minNoticeHours, viewerTimezone)
+      : addMinutes(now, minNoticeHours * 60);
 
   if (!viewerTimezone) {
     return {

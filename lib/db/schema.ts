@@ -7,6 +7,7 @@ import {
   text,
   timestamp,
   uuid,
+  index,
 } from "drizzle-orm/pg-core";
 
 export const bookedByEnum = pgEnum("booked_by", ["scheduler", "guest"]);
@@ -42,42 +43,56 @@ export const calendars = pgTable("calendars", {
     .defaultNow(),
 });
 
-export const calendarMembers = pgTable("calendar_members", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  calendarId: uuid("calendar_id")
-    .notNull()
-    .references(() => calendars.id, { onDelete: "cascade" }),
-  email: text("email").notNull(),
-  displayName: text("display_name"),
-  maxPerDayOverride: integer("max_per_day_override"),
-  maxPerWeekOverride: integer("max_per_week_override"),
-  workingHoursOverride: jsonb("working_hours_override").$type<WorkingHours | null>(),
-  timezone: text("timezone"),
-  sortOrder: integer("sort_order").notNull().default(0),
-});
+export const calendarMembers = pgTable(
+  "calendar_members",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    calendarId: uuid("calendar_id")
+      .notNull()
+      .references(() => calendars.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    displayName: text("display_name"),
+    maxPerDayOverride: integer("max_per_day_override"),
+    maxPerWeekOverride: integer("max_per_week_override"),
+    workingHoursOverride: jsonb("working_hours_override").$type<WorkingHours | null>(),
+    timezone: text("timezone"),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (table) => [index("calendar_members_calendar_id_idx").on(table.calendarId)],
+);
 
-export const meetings = pgTable("meetings", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  calendarId: uuid("calendar_id")
-    .notNull()
-    .references(() => calendars.id, { onDelete: "cascade" }),
-  assignedMemberId: uuid("assigned_member_id")
-    .notNull()
-    .references(() => calendarMembers.id),
-  startsAt: timestamp("starts_at", { withTimezone: true, mode: "string" })
-    .notNull(),
-  durationMinutes: integer("duration_minutes").notNull(),
-  subject: text("subject").notNull(),
-  body: text("body").notNull(),
-  invitees: jsonb("invitees").notNull().$type<string[]>(),
-  googleEventId: text("google_event_id").notNull(),
-  meetLink: text("meet_link"),
-  bookedBy: bookedByEnum("booked_by").notNull(),
-  guestEmail: text("guest_email"),
-  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
-    .notNull()
-    .defaultNow(),
-});
+export const meetings = pgTable(
+  "meetings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    calendarId: uuid("calendar_id")
+      .notNull()
+      .references(() => calendars.id, { onDelete: "cascade" }),
+    assignedMemberId: uuid("assigned_member_id")
+      .notNull()
+      .references(() => calendarMembers.id),
+    startsAt: timestamp("starts_at", { withTimezone: true, mode: "string" })
+      .notNull(),
+    durationMinutes: integer("duration_minutes").notNull(),
+    subject: text("subject").notNull(),
+    body: text("body").notNull(),
+    invitees: jsonb("invitees").notNull().$type<string[]>(),
+    googleEventId: text("google_event_id").notNull(),
+    meetLink: text("meet_link"),
+    bookedBy: bookedByEnum("booked_by").notNull(),
+    guestEmail: text("guest_email"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("meetings_calendar_starts_at_idx").on(table.calendarId, table.startsAt),
+    index("meetings_member_starts_at_idx").on(
+      table.assignedMemberId,
+      table.startsAt,
+    ),
+  ],
+);
 
 export type SchedulerRow = typeof schedulers.$inferSelect;
 export type CalendarRow = typeof calendars.$inferSelect;

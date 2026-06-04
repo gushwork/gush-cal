@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Source_Sans_3 } from "next/font/google";
 import { BrandStyles } from "@/components/brand/brand-styles";
+import { AppToaster } from "@/components/ui/toaster";
 import { buildRootMetadata } from "@/lib/brand/metadata";
 import { getBrandConfig } from "@/lib/brand/config";
 import "./globals.css";
@@ -53,6 +54,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-paper text-ink">
         <BrandStyles />
         {children}
+        <AppToaster />
       </body>
     </html>
   );

@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Plan docs use shorthand like max-w-[var(--content-*)] — exclude from class detection */
+@source not "../docs/**";
+
 :root {
   --paper: #faf7f2;
   --ink: #1c1917;
@@ -17,7 +20,20 @@
 
   --page-py: 1.5rem;
   --page-px: 1.25rem;
-  --section-gap: 1rem;
+  --section-gap: 1.5rem;
+
+  --content-admin: 64rem;
+  --content-booking: 72rem;
+  --content-form: 28rem;
+  --content-form-wide: 42rem;
+
+  --radius-control: 0.75rem;
+  --radius-pill: 9999px;
+
+  --shadow-sm: 0 1px 2px rgb(28 25 23 / 0.06);
+  --shadow-md: 0 4px 12px rgb(28 25 23 / 0.08);
+
+  --text-body-size: 1rem;
 
   --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -53,11 +69,11 @@ body::before {
   position: fixed;
   inset: 0;
   z-index: 0;
-  opacity: 0.04;
+  opacity: 0.025;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-body > * {
+body > *:not([data-sonner-toaster]) {
   position: relative;
   z-index: 1;
 }
@@ -89,8 +105,24 @@ body > * {
 
 .text-body {
   font-family: var(--font-body), system-ui, sans-serif;
-  font-size: 0.875rem;
+  font-size: var(--text-body-size);
+  line-height: 1.65;
+}
+
+.text-heading {
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.text-caption {
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   line-height: 1.5;
+  text-transform: uppercase;
 }
 
 .interactive {
@@ -111,13 +143,66 @@ body > * {
   }
 }
 
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.75);
+  }
+  60% {
+    transform: scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .animate-step-in {
-  animation: step-in 0.25s var(--ease-expo) both;
+  animation: step-in 300ms var(--ease-expo) both;
+}
+
+.animate-page-in {
+  animation: page-in 350ms var(--ease-expo) both;
+}
+
+.animate-fade-up {
+  animation: fade-up 400ms var(--ease-expo) both;
+}
+
+.animate-pop-in {
+  animation: pop-in 500ms var(--ease-expo) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-step-in {
+  .animate-step-in,
+  .animate-page-in,
+  .animate-fade-up,
+  .animate-pop-in {
     animation: none;
+    opacity: 1;
+    transform: none;
   }
 
   .interactive {
@@ -143,4 +228,84 @@ body > * {
   .animate-skeleton {
     animation: none;
   }
+}
+
+/* ── SP-26: Line-height scale ───────────────────────── */
+.leading-display {
+  line-height: 1.1;
+}
+.leading-heading {
+  line-height: 1.25;
+}
+.leading-body {
+  line-height: 1.65;
+}
+.leading-ui {
+  line-height: 1.4;
+}
+
+/* ── SP-26: Label de-emphasis ───────────────────────── */
+.label-secondary {
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted, currentColor);
+  opacity: 0.7;
+}
+
+/* ── SP-26: Prose width constraint ──────────────────── */
+.prose-measure {
+  max-width: 65ch;
+}
+
+/* ── SP-26: Tabular numbers ─────────────────────────── */
+.numeric {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum";
+}
+
+/* ── SP-27: Card hover lift ─────────────────────────── */
+.interactive-lift {
+  transition:
+    transform 150ms var(--ease-expo),
+    box-shadow 150ms var(--ease-expo);
+}
+.interactive-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* ── SP-27: Row hover ─────────────────────────────────── */
+.interactive-row {
+  transition: background-color 100ms var(--ease-expo);
+  cursor: default;
+}
+.interactive-row:hover {
+  background-color: rgb(28 25 23 / 0.04);
+}
+
+/* ── SP-27: Button active press ─────────────────────── */
+.btn-press {
+  transition: transform 100ms var(--ease-expo);
+}
+.btn-press:active {
+  transform: scale(0.97);
+}
+
+/* ── SP-27: Branded focus ring ──────────────────────── */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+/* ── SP-27: Scroll shadow on sticky header ──────────── */
+.scroll-shadow-top {
+  transition: box-shadow 200ms var(--ease-expo);
+}
+.scroll-shadow-top[data-scrolled] {
+  box-shadow:
+    0 1px 0 rgb(28 25 23 / 0.08),
+    0 4px 16px rgb(28 25 23 / 0.06);
 }

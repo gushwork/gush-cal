@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { confirmBooking } from "@/lib/booking/confirm-booking";
+import {
+  confirmBooking,
+  MIN_NOTICE_VIOLATION,
+} from "@/lib/booking/confirm-booking";
 import { loadCalendarBundleBySlug } from "@/lib/booking/load-calendar-by-slug";
 import { toPublicMeeting } from "@/lib/booking/to-public-meeting";
 import { createAppDeps } from "@/lib/deps";
@@ -39,6 +42,16 @@ export async function POST(request: Request, { params }: RouteParams) {
   if (!result.ok) {
     if (result.code === "SLOT_UNAVAILABLE") {
       return NextResponse.json({ error: "SLOT_UNAVAILABLE" }, { status: 409 });
+    }
+    if (result.code === MIN_NOTICE_VIOLATION) {
+      return NextResponse.json(
+        {
+          error: MIN_NOTICE_VIOLATION,
+          message:
+            "This time is too soon. Choose a slot at least the minimum notice hours from now.",
+        },
+        { status: 400 },
+      );
     }
     return NextResponse.json(
       { error: "Failed to create calendar event" },

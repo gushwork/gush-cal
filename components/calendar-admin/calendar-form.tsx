@@ -1,11 +1,13 @@
 "use client";
 
 import {
+  AlertBanner,
   Button,
   DurationChipGroup,
   Input,
   Label,
 } from "@/components/ui";
+import { toast } from "@/components/ui/toast";
 import {
   TimezoneSelect,
   WorkingHoursEditor,
@@ -19,6 +21,28 @@ import { DEFAULT_WORKING_HOURS } from "./validation";
 type CalendarFormProps =
   | { mode: "create" }
   | { mode: "edit"; calendar: Calendar };
+
+function FormSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-4 border-t border-border pt-6 first:border-t-0 first:pt-0">
+      <div>
+        <h3 className="text-heading font-semibold text-ink">{title}</h3>
+        {description ? (
+          <p className="mt-1 text-sm text-ink-muted">{description}</p>
+        ) : null}
+      </div>
+      {children}
+    </section>
+  );
+}
 
 export function getBrowserTimezone(): IanaTimezone {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -113,83 +137,87 @@ export function CalendarForm(props: CalendarFormProps) {
     }
 
     const data = (await res.json()) as { calendar: Calendar };
+    toast(isEdit ? "Calendar saved" : "Calendar created", { variant: "success" });
     router.push(`/calendars/${data.calendar.id}`);
     router.refresh();
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <p className="rounded-lg bg-destructive-soft px-4 py-3 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      {error ? <AlertBanner variant="error">{error}</AlertBanner> : null}
 
-      <Label className="space-y-1.5">
-        Name
-        <Input
-          required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </Label>
-
-      <Label className="block max-w-xs space-y-1.5">
-        Booking window (days)
-        <Input
-          type="number"
-          min={1}
-          required
-          value={bookingWindowDays}
-          onChange={(e) => setBookingWindowDays(Number(e.target.value))}
-        />
-        <span className="block text-xs text-ink-muted">
-          How far ahead invitees can schedule.
-        </span>
-      </Label>
-
-      <Label className="block max-w-xs space-y-1.5">
-        Minimum notice (hours)
-        <Input
-          type="number"
-          min={0}
-          required
-          value={minNoticeHours}
-          onChange={(e) => setMinNoticeHours(Number(e.target.value))}
-        />
-        <span className="block text-xs text-ink-muted">
-          Earliest bookable slot must be at least this many hours away.
-        </span>
-      </Label>
-
-      <div className="grid grid-cols-2 gap-4">
+      <FormSection title="General">
         <Label className="space-y-1.5">
-          Max meetings / day
+          Name
           <Input
-            type="number"
             required
-            value={defaultMaxPerDay}
-            onChange={(e) => setDefaultMaxPerDay(Number(e.target.value))}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
           />
         </Label>
-        <Label className="space-y-1.5">
-          Max meetings / week
+      </FormSection>
+
+      <FormSection
+        title="Booking rules"
+        description="Control how far ahead invitees can schedule and minimum notice."
+      >
+        <Label className="block max-w-xs space-y-1.5">
+          Booking window (days)
           <Input
             type="number"
+            min={1}
             required
-            value={defaultMaxPerWeek}
-            onChange={(e) => setDefaultMaxPerWeek(Number(e.target.value))}
+            value={bookingWindowDays}
+            onChange={(e) => setBookingWindowDays(Number(e.target.value))}
           />
+          <span className="block text-xs text-ink-muted">
+            How far ahead invitees can schedule.
+          </span>
         </Label>
-      </div>
 
-      <div className="space-y-3">
-        <div>
-          <p className="text-sm font-medium text-ink">Durations (minutes)</p>
-          <p className="mt-1 text-xs text-ink-muted">
-            Select one or more meeting lengths invitees can book.
-          </p>
+        <Label className="block max-w-xs space-y-1.5">
+          Minimum notice (hours)
+          <Input
+            type="number"
+            min={0}
+            max={720}
+            required
+            value={minNoticeHours}
+            onChange={(e) => setMinNoticeHours(Number(e.target.value))}
+          />
+          <span className="block text-xs text-ink-muted">
+            Earliest bookable slot must be at least this many hours away.
+          </span>
+        </Label>
+      </FormSection>
+
+      <FormSection title="Meeting limits">
+        <div className="grid grid-cols-2 gap-4">
+          <Label className="space-y-1.5">
+            Max meetings / day
+            <Input
+              type="number"
+              required
+              value={defaultMaxPerDay}
+              onChange={(e) => setDefaultMaxPerDay(Number(e.target.value))}
+            />
+          </Label>
+          <Label className="space-y-1.5">
+            Max meetings / week
+            <Input
+              type="number"
+              required
+              value={defaultMaxPerWeek}
+              onChange={(e) => setDefaultMaxPerWeek(Number(e.target.value))}
+            />
+          </Label>
         </div>
+      </FormSection>
+
+      <FormSection
+        title="Durations"
+        description="Select one or more meeting lengths invitees can book."
+      >
         <DurationChipGroup
           values={[...ALLOWED_DURATIONS]}
           selected={durations}
@@ -200,34 +228,27 @@ export function CalendarForm(props: CalendarFormProps) {
           }}
           mode="multi"
         />
-      </div>
+      </FormSection>
 
-      <div className="space-y-4 border-t border-border pt-6">
+      <FormSection
+        title="Timezone and working hours"
+        description={`Availability windows are interpreted in ${timezone}. Per-member overrides can be set on the member edit page.`}
+      >
         <TimezoneSelect
           value={timezone}
           onChange={setTimezone}
           label="Calendar timezone"
           disabled={saving}
         />
-
-        <div className="space-y-3">
-          <div>
-            <p className="text-sm font-medium text-ink">Default working hours</p>
-            <p className="mt-1 text-xs text-ink-muted">
-              Availability windows are interpreted in {timezone}. Per-member
-              overrides can be set on the member edit page.
-            </p>
-          </div>
-          <WorkingHoursEditor
-            value={defaultWorkingHours}
-            onChange={setDefaultWorkingHours}
-            disabled={saving}
-          />
-        </div>
-      </div>
+        <WorkingHoursEditor
+          value={defaultWorkingHours}
+          onChange={setDefaultWorkingHours}
+          disabled={saving}
+        />
+      </FormSection>
 
       <Button type="submit" loading={saving}>
-        {isEdit ? "Save changes" : "Create Calendar"}
+        {isEdit ? "Save Changes" : "Create Calendar"}
       </Button>
     </form>
   );

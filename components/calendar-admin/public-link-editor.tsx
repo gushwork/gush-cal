@@ -1,7 +1,7 @@
 "use client";
 
 import { publicBookingUrl } from "@/components/calendar-admin/validation";
-import { Button, Dialog, Input, Label } from "@/components/ui";
+import { AlertBanner, Button, Dialog, Input, Label } from "@/components/ui";
 import type { Calendar } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -9,9 +9,14 @@ import { useEffect, useState } from "react";
 export type PublicLinkEditorProps = {
   calendarId: string;
   slug: string;
+  showHeading?: boolean;
 };
 
-export function PublicLinkEditor({ calendarId, slug: initialSlug }: PublicLinkEditorProps) {
+export function PublicLinkEditor({
+  calendarId,
+  slug: initialSlug,
+  showHeading = true,
+}: PublicLinkEditorProps) {
   const router = useRouter();
   const [slug, setSlug] = useState(initialSlug);
   const [error, setError] = useState<string | null>(null);
@@ -62,19 +67,19 @@ export function PublicLinkEditor({ calendarId, slug: initialSlug }: PublicLinkEd
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-medium text-ink">Public booking link</h2>
-        <p className="mt-1 text-sm text-ink-muted">
-          Share this URL with candidates. Changing the slug invalidates the
-          previous link immediately.
-        </p>
-      </div>
+      {showHeading ? (
+        <div>
+          <h3 className="text-heading font-semibold text-ink">Link slug</h3>
+          <p className="mt-1 text-sm text-ink-muted">
+            Share the public URL with invitees. Changing the slug invalidates the
+            previous link immediately.
+          </p>
+        </div>
+      ) : null}
 
-      {error && (
-        <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
-      )}
+      {error ? (
+        <AlertBanner variant="error">{error}</AlertBanner>
+      ) : null}
 
       <p className="break-all text-sm text-ink">
         <a

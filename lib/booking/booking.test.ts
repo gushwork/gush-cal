@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppDeps } from "@/lib/deps";
 import type { CalendarBundle, ConfirmBookingBody } from "@/lib/types";
 import { cancelMeeting } from "./cancel-meeting";
-import { confirmBooking } from "./confirm-booking";
+import { confirmBooking, MIN_NOTICE_VIOLATION } from "./confirm-booking";
 import {
   clearSlotsCache,
   clearSlotsCacheForCalendar,
@@ -110,6 +110,9 @@ function createMockDeps(overrides?: Partial<AppDeps>): AppDeps {
     db: {
       countMeetingsForMember: vi.fn().mockResolvedValue(0),
       countMeetingsForMemberOnDay: vi.fn().mockResolvedValue(0),
+      listMeetingStartsForMembers: vi
+        .fn()
+        .mockResolvedValue(new Map<string, string[]>()),
     },
     ...overrides,
   };
@@ -196,6 +199,26 @@ describe("confirmBooking", () => {
 
     expect(result).toEqual({ ok: false, code: "GOOGLE_ERROR" });
     expect(mockInsertReturning).not.toHaveBeenCalled();
+  });
+
+  it("returns MIN_NOTICE_VIOLATION for guest bookings inside notice window", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-03T14:00:00.000Z"));
+
+    const deps = createMockDeps();
+    const result = await confirmBooking(deps, {
+      bundle: { ...sampleBundle, minNoticeHours: 24 },
+      body: {
+        ...sampleBody,
+        startsAt: "2026-06-04T10:00:00.000Z",
+        viewerTimezone: "Asia/Kolkata",
+      },
+      bookedBy: "guest",
+    });
+
+    expect(result).toEqual({ ok: false, code: MIN_NOTICE_VIOLATION });
+    expect(deps.slots.assignMember).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 
   it("sets guestEmail for guest bookings", async () => {

@@ -6,6 +6,8 @@ import {
   requireSchedulerId,
 } from "@/components/calendar-admin/require-scheduler";
 import { validateDurations } from "@/components/calendar-admin/validation";
+import { clearSlotsCacheForCalendar } from "@/lib/booking/slots-cache";
+import { validateMinNoticeHours } from "@/lib/calendar/validate-min-notice-hours";
 import { getDb } from "@/lib/db/client";
 import { toCalendar } from "@/lib/db/mappers";
 import {
@@ -142,6 +144,13 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
   }
 
+  if (body.minNoticeHours !== undefined) {
+    const noticeError = validateMinNoticeHours(body.minNoticeHours);
+    if (noticeError) {
+      return jsonError(noticeError, 400);
+    }
+  }
+
   const slugResult = await resolveSlugUpdate(id, auth.schedulerId, body);
   if (!slugResult.ok) {
     return slugResult.response;
@@ -154,7 +163,9 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       ...(body.bookingWindowDays != null
         ? { bookingWindowDays: body.bookingWindowDays }
         : {}),
-      minNoticeHours: 0,
+      ...(body.minNoticeHours != null
+        ? { minNoticeHours: body.minNoticeHours }
+        : {}),
       ...(body.defaultMaxPerDay != null
         ? { defaultMaxPerDay: body.defaultMaxPerDay }
         : {}),
@@ -175,6 +186,10 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 
   if (!row) {
     return jsonError("Calendar not found", 404);
+  }
+
+  if (body.minNoticeHours != null) {
+    clearSlotsCacheForCalendar(id);
   }
 
   return NextResponse.json({ calendar: toCalendar(row) });

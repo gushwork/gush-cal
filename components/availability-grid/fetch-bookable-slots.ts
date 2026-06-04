@@ -3,6 +3,12 @@
 import { loadCalendarBundle } from "@/components/calendar-admin/load-calendar-bundle";
 import { getSchedulerId } from "@/lib/auth";
 import { createAppDeps } from "@/lib/deps";
+import {
+  getCachedSlots,
+  setCachedSlots,
+  slotsCacheKey,
+} from "@/lib/booking/slots-cache";
+import { fetchBookableSlotsBatch } from "@/lib/slots/fetch-bookable-slots-batch";
 import type { IanaTimezone, Slot, UtcInstant } from "@/lib/types";
 
 export async function fetchBookableSlots(params: {
@@ -22,8 +28,22 @@ export async function fetchBookableSlots(params: {
     return [];
   }
 
+  const cacheKey = slotsCacheKey({
+    scope: "admin-availability",
+    calendarId: params.calendarId,
+    duration: params.durationMinutes,
+    from: params.rangeStart,
+    to: params.rangeEnd,
+    tz: params.viewerTimezone,
+  });
+
+  const cached = getCachedSlots(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
   const deps = createAppDeps();
-  return deps.slots.getAvailableSlots({
+  const slots = await fetchBookableSlotsBatch(deps, {
     bundle,
     durationMinutes: params.durationMinutes,
     rangeStart: params.rangeStart,
@@ -31,4 +51,7 @@ export async function fetchBookableSlots(params: {
     viewerTimezone: params.viewerTimezone,
     bookingPolicy: "admin",
   });
+
+  setCachedSlots(cacheKey, slots);
+  return slots;
 }

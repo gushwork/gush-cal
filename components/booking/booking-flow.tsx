@@ -1,7 +1,7 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BookingCalendar } from "@/components/booking/booking-calendar";
 import { BookingStepper } from "@/components/booking/booking-stepper";
 import { BookingSuccessPanel } from "@/components/booking/booking-success";
 import {
@@ -10,10 +10,15 @@ import {
   groupSlotsByDate,
   intersectRange,
 } from "@/components/booking/group-slots-by-date";
+import { parseInviteeLines } from "@/components/booking/invitee-form";
 import {
-  InviteeForm,
-  parseInviteeLines,
-} from "@/components/booking/invitee-form";
+  findSlotForDeepLink,
+  monthFromDateKey,
+  parseBookingDeepLink,
+} from "@/components/booking/parse-booking-deep-link";
+import { BookingDatePanel } from "@/components/booking/steps/booking-date-panel";
+import { BookingDetailsPanel } from "@/components/booking/steps/booking-details-panel";
+import { BookingDurationPanel } from "@/components/booking/steps/booking-duration-panel";
 import { SlotPicker } from "@/components/booking/slot-picker";
 import {
   defaultViewerTimezone,
@@ -25,7 +30,10 @@ import type {
   DateKey,
   MonthSlotsCacheKey,
 } from "@/components/booking/types";
-import { Button, DurationChipGroup } from "@/components/ui";
+import { AlertBanner } from "@/components/ui/alert-banner";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/components/ui/toast";
 import type { BookingStepId } from "@/components/ui/stepper";
 import type { ConfirmBookingBody, PublicMeeting, Slot } from "@/lib/types";
 
@@ -92,6 +100,20 @@ function stepperStep(step: BookingWizardStep): BookingStepId | null {
   return step;
 }
 
+function timezoneAbbreviation(timezone: string): string {
+  try {
+    const part = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      timeZoneName: "short",
+    })
+      .formatToParts(new Date())
+      .find((p) => p.type === "timeZoneName");
+    return part?.value ?? timezone;
+  } catch {
+    return timezone;
+  }
+}
+
 function stepTitle(
   step: BookingWizardStep,
   selectedDate: DateKey | null,
@@ -99,22 +121,41 @@ function stepTitle(
 ): string {
   switch (step) {
     case "duration":
-      return "Choose duration";
+      return "Duration";
     case "date":
-      return "Pick a date";
-    case "time":
+      return "Date";
+    case "time": {
+      const abbr = timezoneAbbreviation(viewerTimezone);
       if (selectedDate) {
         const dateLabel = new Intl.DateTimeFormat(undefined, {
-          weekday: "long",
-          month: "long",
+          weekday: "short",
+          month: "short",
           day: "numeric",
           timeZone: viewerTimezone,
         }).format(new Date(`${selectedDate}T12:00:00Z`));
-        return `Pick a time · ${dateLabel}`;
+        return `Time · ${dateLabel} (${abbr})`;
       }
-      return "Pick a time";
+      return `Time (${abbr})`;
+    }
     case "details":
-      return "Meeting details";
+      return "Details";
+    default:
+      return "";
+  }
+}
+
+function stepAnnouncement(step: BookingWizardStep): string {
+  switch (step) {
+    case "duration":
+      return "Duration step";
+    case "date":
+      return "Date step";
+    case "time":
+      return "Time step";
+    case "details":
+      return "Details step";
+    case "done":
+      return "Booking complete";
     default:
       return "";
   }
@@ -136,15 +177,37 @@ export function BookingFlow({
   showPanelistCount = !isPublic,
   onConfirmed,
 }: BookingFlowProps) {
-  const [step, setStep] = useState<BookingWizardStep>("duration");
-  const [durationMinutes, setDurationMinutes] = useState<number | null>(
-    durations.length === 1 ? durations[0] : null,
+  const searchParams = useSearchParams();
+  const deepLink = useMemo(
+    () => parseBookingDeepLink(searchParams, durations),
+    [searchParams, durations],
   );
+  const skipDurationStep = durations.length === 1;
+  const [step, setStep] = useState<BookingWizardStep>(
+    skipDurationStep ? "date" : "duration",
+  );
+  const [durationMinutes, setDurationMinutes] = useState<number | null>(() => {
+    if (skipDurationStep) {
+      return durations[0] ?? null;
+    }
+    return deepLink?.durationMinutes ?? null;
+  });
   const [viewerTimezone, setViewerTimezone] = useState(defaultViewerTimezone);
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const { minDate } = computeBookingWindow(bookingWindowDays);
-    return initialVisibleMonth(minDate, defaultViewerTimezone());
+    const tz = defaultViewerTimezone();
+    if (deepLink?.date) {
+      return monthFromDateKey(deepLink.date);
+    }
+    return initialVisibleMonth(minDate, tz);
   });
+  const [deepLinkResolving, setDeepLinkResolving] = useState(() => {
+    if (!deepLink) {
+      return false;
+    }
+    return skipDurationStep || deepLink.durationMinutes != null;
+  });
+  const deepLinkAttemptedRef = useRef(false);
   const [monthSlots, setMonthSlots] = useState<Slot[]>([]);
   const slotsCacheRef = useRef<Map<MonthSlotsCacheKey, Slot[]>>(new Map());
   const [slotsLoading, setSlotsLoading] = useState(false);
@@ -235,10 +298,106 @@ export function BookingFlow({
   ]);
 
   useEffect(() => {
+    if (skipDurationStep && step === "duration") {
+      setDurationMinutes(durations[0]);
+      setStep("date");
+    }
+  }, [skipDurationStep, step, durations]);
+
+  useEffect(() => {
     if (step === "date" && durationMinutes) {
       void loadMonthSlots();
     }
   }, [step, durationMinutes, loadMonthSlots]);
+
+  useEffect(() => {
+    const link = deepLink;
+    if (!link || deepLinkAttemptedRef.current || !durationMinutes) {
+      if (!link) {
+        setDeepLinkResolving(false);
+      }
+      return;
+    }
+
+    deepLinkAttemptedRef.current = true;
+    let cancelled = false;
+
+    (async () => {
+      setDeepLinkResolving(true);
+      setError(null);
+      setSelectedDate(link.date);
+      const { year, month } = monthFromDateKey(link.date);
+      setVisibleMonth({ year, month });
+
+      const range = monthFetchIsoRange(year, month, minDate, maxDate);
+      if (!range) {
+        if (!cancelled) {
+          setStep("date");
+          setError("That date is outside the booking window.");
+          setDeepLinkResolving(false);
+        }
+        return;
+      }
+
+      try {
+        const params = new URLSearchParams({
+          duration: String(durationMinutes),
+          from: range.from,
+          to: range.to,
+          tz: viewerTimezone,
+        });
+        const res = await fetch(`${slotsApiPath}?${params}`);
+        const data = (await res.json()) as { slots?: Slot[]; error?: string };
+        if (!res.ok) {
+          throw new Error(data.error ?? "Failed to load slots");
+        }
+
+        const slots = data.slots ?? [];
+        const cacheKey = monthCacheKey(
+          year,
+          month,
+          durationMinutes,
+          viewerTimezone,
+        );
+        slotsCacheRef.current.set(cacheKey, slots);
+        setMonthSlots(slots);
+
+        const match = findSlotForDeepLink(slots, link, viewerTimezone);
+        if (cancelled) {
+          return;
+        }
+
+        if (match) {
+          setSelectedStartsAt(match.startsAt);
+          setStep("details");
+        } else {
+          setSelectedStartsAt(null);
+          setStep("time");
+          setError("That time is no longer available. Choose another slot.");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load slots");
+          setStep("date");
+        }
+      } finally {
+        if (!cancelled) {
+          setDeepLinkResolving(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    deepLink,
+    durationMinutes,
+    viewerTimezone,
+    slotsApiPath,
+    minDate,
+    maxDate,
+  ]);
 
   function handleTimezoneChange(tz: string) {
     setViewerTimezone(tz);
@@ -264,6 +423,9 @@ export function BookingFlow({
   function handleBack() {
     const previous = PREVIOUS_STEP[step];
     if (previous) {
+      if (skipDurationStep && previous === "duration") {
+        return;
+      }
       setError(null);
       setStep(previous);
     }
@@ -323,6 +485,7 @@ export function BookingFlow({
       const data = (await res.json()) as {
         meeting?: PublicMeeting;
         error?: string;
+        message?: string;
       };
 
       if (res.status === 409) {
@@ -330,7 +493,22 @@ export function BookingFlow({
         setSelectedStartsAt(null);
         slotsCacheRef.current = new Map();
         await loadMonthSlots();
-        setError("That time was just taken. Please pick another slot.");
+        const message = "That time was just taken. Please pick another slot.";
+        toast(message, { variant: "error" });
+        setError(message);
+        return;
+      }
+
+      if (data.error === "MIN_NOTICE_VIOLATION") {
+        setStep("time");
+        setSelectedStartsAt(null);
+        slotsCacheRef.current = new Map();
+        await loadMonthSlots();
+        const message =
+          data.message ??
+          "This time is too soon. Pick a slot further in the future.";
+        toast(message, { variant: "error" });
+        setError(message);
         return;
       }
 
@@ -355,7 +533,12 @@ export function BookingFlow({
     (step === "duration" && durationMinutes !== null) ||
     (step === "date" && selectedDate !== null) ||
     (step === "time" && selectedStartsAt !== null) ||
-    (step === "details" && subject.trim().length > 0 && !submitting);
+    (step === "details" &&
+      subject.trim().length > 0 &&
+      !submitting &&
+      (!isPublic || guestEmail.trim().length > 0));
+
+  const showBack = step !== "duration" && !(skipDurationStep && step === "date");
 
   if (step === "done" && confirmedMeeting) {
     return (
@@ -367,8 +550,29 @@ export function BookingFlow({
     );
   }
 
+  if (deepLinkResolving) {
+    return (
+      <div
+        className="flex flex-col gap-4 py-12"
+        data-testid="booking-deep-link-loading"
+        aria-busy
+        aria-label="Loading selected time slot"
+      >
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-40 w-full max-w-lg" />
+        <Skeleton className="h-10 w-32" />
+      </div>
+    );
+  }
+
+  const noopContinue = () => {};
+
   return (
     <div className="flex flex-col gap-6 md:flex-row md:items-start md:gap-10">
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {stepAnnouncement(step)}
+      </div>
+
       {currentStepperStep ? (
         <aside className="md:sticky md:top-4 md:w-44 md:shrink-0 lg:w-52">
           <BookingStepper
@@ -378,14 +582,14 @@ export function BookingFlow({
         </aside>
       ) : null}
 
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:max-w-3xl">
         {error ? (
-          <div className="mb-4 rounded-lg border border-primary/30 bg-primary-soft px-4 py-3 text-sm text-primary">
+          <AlertBanner variant="error" className="mb-4">
             {error}
-          </div>
+          </AlertBanner>
         ) : null}
 
-        <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <h2 className="min-w-0 font-display text-lg font-medium text-ink">
             {stepTitle(step, selectedDate, viewerTimezone)}
           </h2>
@@ -395,65 +599,73 @@ export function BookingFlow({
           />
         </div>
 
-        <div key={step} className="flex-1 animate-step-in pb-4">
-          {step === "duration" ? (
-            <DurationChipGroup
-              values={durations}
-              selected={durationMinutes ?? -1}
-              onChange={(value) => {
-                if (typeof value === "number" && value >= 0) {
-                  setDurationMinutes(value);
-                }
-              }}
-            />
-          ) : null}
+        <div key={step} className="flex-1 pb-4">
+          <div className="animate-step-in">
+            {step === "duration" ? (
+              <BookingDurationPanel
+                durations={durations}
+                selectedMinutes={durationMinutes}
+                onSelectMinutes={setDurationMinutes}
+                onContinue={noopContinue}
+              />
+            ) : null}
 
-          {step === "date" ? (
-            <BookingCalendar
-              visibleMonth={visibleMonth}
-              onMonthChange={(year, month) => setVisibleMonth({ year, month })}
-              slotCountsByDate={slotCountsByDate}
-              selectedDate={selectedDate}
-              onSelectDate={setSelectedDate}
-              minDate={minDate}
-              maxDate={maxDate}
-              loading={slotsLoading}
-              viewerTimezone={viewerTimezone}
-            />
-          ) : null}
+            {step === "date" && durationMinutes ? (
+              <BookingDatePanel
+                visibleMonth={visibleMonth}
+                onMonthChange={(year, month) => setVisibleMonth({ year, month })}
+                slotCountsByDate={slotCountsByDate}
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+                minDate={minDate}
+                maxDate={maxDate}
+                slotsLoading={slotsLoading}
+                viewerTimezone={viewerTimezone}
+                onContinue={noopContinue}
+              />
+            ) : null}
 
-          {step === "time" ? (
-            <SlotPicker
-              slots={slotsForSelectedDate}
-              selectedStartsAt={selectedStartsAt}
-              onSelect={setSelectedStartsAt}
-              loading={slotsLoading}
-              viewerTimezone={viewerTimezone}
-              showPanelistCount={showPanelistCount}
-            />
-          ) : null}
+            {step === "time" ? (
+              <SlotPicker
+                slots={slotsForSelectedDate}
+                selectedStartsAt={selectedStartsAt}
+                onSelect={setSelectedStartsAt}
+                loading={slotsLoading}
+                viewerTimezone={viewerTimezone}
+                showMemberCount={showPanelistCount}
+                onBackToDate={() => handleStepClick("date")}
+              />
+            ) : null}
 
-          {step === "details" ? (
-            <InviteeForm
-              invitees={invitees}
-              subject={subject}
-              body={body}
-              guestEmail={guestEmail}
-              showGuestEmail={isPublic}
-              onInviteesChange={setInvitees}
-              onSubjectChange={setSubject}
-              onBodyChange={setBody}
-              onGuestEmailChange={setGuestEmail}
-            />
-          ) : null}
+            {step === "details" && selectedDate && selectedStartsAt && durationMinutes ? (
+              <BookingDetailsPanel
+                calendarName={calendarName}
+                dateKey={selectedDate}
+                startsAt={selectedStartsAt}
+                durationMinutes={durationMinutes}
+                viewerTimezone={viewerTimezone}
+                invitees={invitees}
+                subject={subject}
+                body={body}
+                guestEmail={guestEmail}
+                showGuestEmail={isPublic}
+                onInviteesChange={setInvitees}
+                onSubjectChange={setSubject}
+                onBodyChange={setBody}
+                onGuestEmailChange={setGuestEmail}
+                loading={submitting}
+                onContinue={noopContinue}
+              />
+            ) : null}
+          </div>
         </div>
 
-        <footer className="sticky bottom-0 -mx-[var(--page-px)] border-t border-border bg-paper/95 px-[var(--page-px)] py-3 backdrop-blur-sm supports-[backdrop-filter]:bg-paper/80">
-          <div className="flex items-center justify-between gap-3">
+        <footer className="sticky bottom-0 -mx-[var(--page-px)] border-t border-border bg-paper/95 px-[var(--page-px)] py-3 shadow-[var(--shadow-sm)] backdrop-blur-sm supports-[backdrop-filter]:bg-paper/80 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="mx-auto flex min-h-[3.25rem] max-w-[var(--content-booking)] items-center justify-between gap-3">
             <Button
               type="button"
               variant="ghost"
-              disabled={step === "duration"}
+              disabled={!showBack}
               onClick={handleBack}
             >
               Back
@@ -468,7 +680,7 @@ export function BookingFlow({
             </Button>
           </div>
           {isPublic && step === "details" ? (
-            <p className="mt-2 text-center text-xs text-ink-muted">
+            <p className="mx-auto mt-2 max-w-[var(--content-booking)] text-center text-xs text-ink-muted">
               You&apos;ll receive a calendar invite with Google Meet.
             </p>
           ) : null}

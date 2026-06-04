@@ -67,6 +67,20 @@ function makeBundle(overrides?: Partial<CalendarBundle>): CalendarBundle {
   };
 }
 
+function syntheticMeetings(
+  memberId: string,
+  counts: Record<string, { daily: number; weekly: number }>,
+): string[] {
+  const config = counts[memberId] ?? { daily: 0, weekly: 0 };
+  if (config.weekly === 0) {
+    return [];
+  }
+
+  return Array.from({ length: config.weekly }, (_, index) =>
+    `2026-06-01T${String(9 + (index % 8)).padStart(2, "0")}:00:00.000Z`,
+  );
+}
+
 function makeDb(counts: Record<string, { daily: number; weekly: number }>): DbMeetingCounter {
   return {
     async countMeetingsForMember(memberId, _wStart, _wEnd) {
@@ -74,6 +88,20 @@ function makeDb(counts: Record<string, { daily: number; weekly: number }>): DbMe
     },
     async countMeetingsForMemberOnDay(memberId, _dStart, _dEnd) {
       return counts[memberId]?.daily ?? 0;
+    },
+    async listMeetingStartsForMembers(memberIds, windowStart, windowEnd) {
+      const windowStartMs = new Date(windowStart).getTime();
+      const windowEndMs = new Date(windowEnd).getTime();
+
+      return new Map(
+        memberIds.map((memberId) => [
+          memberId,
+          syntheticMeetings(memberId, counts).filter((start) => {
+            const time = new Date(start).getTime();
+            return time >= windowStartMs && time < windowEndMs;
+          }),
+        ]),
+      );
     },
   };
 }
@@ -159,6 +187,74 @@ describe("createSlotEnginePort", () => {
 
     expect(slots.length).toBeGreaterThan(0);
     expect(slots.every((s) => s.eligibleMemberCount >= 1)).toBe(true);
+  });
+
+  it("buildMeetingCounts uses one list query for all members", async () => {
+    let listCalls = 0;
+    let countCalls = 0;
+    const db: DbMeetingCounter = {
+      async countMeetingsForMember() {
+        countCalls++;
+        return 0;
+      },
+      async countMeetingsForMemberOnDay() {
+        countCalls++;
+        return 0;
+      },
+      async listMeetingStartsForMembers(memberIds) {
+        listCalls++;
+        return new Map(memberIds.map((memberId) => [memberId, []]));
+      },
+    };
+
+    const { buildMeetingCounts } = await import("@/lib/slots/eligibility");
+    await buildMeetingCounts(
+      makeBundle().members,
+      new Date("2026-06-01T10:00:00.000Z"),
+      db,
+    );
+
+    expect(listCalls).toBe(1);
+    expect(countCalls).toBe(0);
+  });
+
+  it("prefetches meetings once per range instead of per slot", async () => {
+    let listCalls = 0;
+    let countCalls = 0;
+    const db: DbMeetingCounter = {
+      async countMeetingsForMember() {
+        countCalls++;
+        return 0;
+      },
+      async countMeetingsForMemberOnDay() {
+        countCalls++;
+        return 0;
+      },
+      async listMeetingStartsForMembers(memberIds) {
+        listCalls++;
+        return new Map(memberIds.map((memberId) => [memberId, []]));
+      },
+    };
+
+    const google = createGoogleCalendarStub();
+    const engine = createSlotEnginePort({ google, db });
+    const bundle = makeBundle({
+      minNoticeHours: 0,
+      bookingWindowDays: 14,
+      defaultWorkingHours: weekdayHours,
+    });
+
+    await engine.getAvailableSlots({
+      bundle,
+      durationMinutes: 60,
+      rangeStart: "2026-06-03T09:00:00.000Z",
+      rangeEnd: "2026-06-10T17:00:00.000Z",
+      viewerTimezone: "UTC",
+      bookingPolicy: "admin",
+    });
+
+    expect(listCalls).toBe(1);
+    expect(countCalls).toBe(0);
   });
 
   it("load-balances assignment toward member with fewer weekly meetings", async () => {

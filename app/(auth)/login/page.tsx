@@ -1,8 +1,10 @@
-import { pageTitle } from "@/lib/brand/metadata";
+import { AppShell } from "@/components/brand/app-shell";
 import { PageContainer } from "@/components/layout/page-container";
-import { Button } from "@/components/ui";
+import { AlertBanner, Button } from "@/components/ui";
 import { getBrandConfig } from "@/lib/brand/config";
+import { pageTitle } from "@/lib/brand/metadata";
 import { signIn } from "@/lib/auth";
+import { AlertCircle, Calendar, Users, Video } from "lucide-react";
 import Image from "next/image";
 
 export const metadata = pageTitle("Sign in");
@@ -39,6 +41,12 @@ function GoogleIcon({ className }: { className?: string }) {
   );
 }
 
+const features = [
+  { icon: Calendar, label: "Shared availability across members" },
+  { icon: Users, label: "Panel scheduling without back-and-forth" },
+  { icon: Video, label: "Meet links created automatically" },
+] as const;
+
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
   const callbackUrl = params.callbackUrl ?? "/";
@@ -46,42 +54,70 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const brand = getBrandConfig();
 
   return (
-    <div className="flex min-h-full flex-col lg:min-h-[calc(100dvh)] lg:flex-row">
-      <div className="flex flex-col items-center justify-center bg-primary-soft px-6 py-10 lg:w-1/2 lg:items-start lg:px-12 lg:py-16">
-        <div className="flex max-w-md flex-col items-center text-center lg:items-start lg:text-left">
-          <Image
-            src={brand.logoUrl}
-            alt=""
-            width={48}
-            height={48}
-            className="h-12 w-12 shrink-0"
-            unoptimized
-          />
-          <h1 className="text-display mt-6 font-display font-semibold text-ink">
-            {brand.appName}
-          </h1>
-          <p className="text-body mt-3 text-ink-muted">
-            Schedule panel interviews with pooled availability.
-          </p>
-        </div>
-      </div>
+    <AppShell variant="auth-minimal">
+      <PageContainer variant="narrow" className="w-full py-8">
+        <div className="mx-auto w-full max-w-md">
+          <div className="mb-8 flex flex-col items-center text-center">
+            <div
+              className="animate-fade-up"
+              style={{ animationDelay: "0ms" }}
+            >
+              <Image
+                src={brand.logoUrl}
+                alt={`${brand.appName} logo`}
+                width={72}
+                height={72}
+                priority
+                className="h-[72px] w-[72px] shrink-0"
+                unoptimized
+              />
+            </div>
+            <h1
+              className="animate-fade-up text-display leading-display mt-6 font-display font-semibold text-ink"
+              style={{ animationDelay: "80ms" }}
+            >
+              {brand.appName}
+            </h1>
+            <p
+              className="animate-fade-up prose-measure text-body leading-body mt-3 text-ink-muted"
+              style={{ animationDelay: "80ms" }}
+            >
+              Schedule panel interviews with pooled availability.
+            </p>
+          </div>
 
-      <div className="flex flex-1 items-center justify-center">
-        <PageContainer variant="narrow" className="w-full">
-          <div className="rounded-xl border border-border bg-surface p-6 sm:p-8">
-            <h2 className="text-title font-display font-semibold text-ink">
-              Sign in
-            </h2>
+          <ul className="mb-8 space-y-3">
+            {features.map(({ icon: Icon, label }) => (
+              <li
+                key={label}
+                className="flex items-start gap-3 text-sm text-ink-muted"
+              >
+                <Icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
+                <span>{label}</span>
+              </li>
+            ))}
+          </ul>
+
+          <div
+            className="animate-fade-up rounded-[var(--radius-control)] border border-border bg-surface p-6 sm:p-8"
+            style={{ animationDelay: "160ms" }}
+          >
+            <h2 className="text-heading font-semibold text-ink">Sign in</h2>
             <p className="mt-2 text-sm text-ink-muted">
               Use your Google Workspace account to manage calendars and schedule
               meetings.
             </p>
 
             {error && (
-              <p className="mt-6 rounded-lg bg-destructive-soft px-4 py-3 text-sm text-destructive">
-                Sign-in failed. Use an account on your organization&apos;s
-                domain.
-              </p>
+              <AlertBanner variant="error" className="mt-6">
+                <span className="flex items-start gap-2">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                  <span>
+                    Sign-in failed. Use an account on your organization&apos;s
+                    domain.
+                  </span>
+                </span>
+              </AlertBanner>
             )}
 
             <form
@@ -96,9 +132,20 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 Continue with Google
               </Button>
             </form>
+
+            <p className="mt-4 text-center text-xs text-ink-muted">
+              Only approved workspace accounts can access admin features.
+            </p>
           </div>
-        </PageContainer>
-      </div>
-    </div>
+
+          <p
+            className="animate-fade-up mt-6 text-center text-caption text-ink-muted"
+            style={{ animationDelay: "240ms" }}
+          >
+            Powered by {brand.appName}
+          </p>
+        </div>
+      </PageContainer>
+    </AppShell>
   );
 }

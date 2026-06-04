@@ -28,9 +28,20 @@ function LegendSwatch({ kind }: { kind: LegendKind }) {
   return <span className={cn(base, styles[kind])} aria-hidden />;
 }
 
-function LegendItem({ kind, label }: { kind: LegendKind; label: string }) {
+function LegendItem({
+  kind,
+  label,
+  title,
+}: {
+  kind: LegendKind;
+  label: string;
+  title?: string;
+}) {
   return (
-    <span className="inline-flex items-center gap-1.5">
+    <span
+      className="inline-flex items-center gap-1.5"
+      title={title}
+    >
       <LegendSwatch kind={kind} />
       <span>{label}</span>
     </span>
@@ -45,12 +56,20 @@ export function GridLegend({ className }: { className?: string }) {
         className,
       )}
       data-testid="grid-legend"
-      aria-label="Grid legend"
+      role="group"
+      aria-labelledby="grid-legend-label"
     >
+      <span id="grid-legend-label" className="font-medium text-ink">
+        Legend:
+      </span>
       <LegendItem kind="busy" label="Busy" />
       <LegendItem kind="free" label="Free" />
       <LegendItem kind="bookable" label="Bookable" />
-      <LegendItem kind="inaccessible" label="Inaccessible" />
+      <LegendItem
+        kind="inaccessible"
+        label="Inaccessible"
+        title="Member calendar could not be read — busy/free data unavailable for this column"
+      />
     </div>
   );
 }
