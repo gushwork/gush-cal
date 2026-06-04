@@ -1,0 +1,20 @@
+---
+description: Mandatory project documentation workflow for all agents
+alwaysApply: true
+---
+
+# Project Documentation Workflow
+
+Before database, route, architecture, booking, availability, Google Calendar, or domain-language work:
+
+- Read `CONTEXT.md` for domain language and invariants.
+- Read `docs/CODEMAP.md` to find the relevant code.
+- For database work, start with the Database sections in `docs/CODEMAP.md`.
+
+When changing app structure, database schema, routes, domain language, architecture, cross-cutting behavior, or important file locations, update docs in the same change:
+
+- `CONTEXT.md` for domain terms and invariants.
+- `docs/CODEMAP.md` for code navigation, database locations, routes, and core flows.
+- `AGENTS.md` for agent-wide process instructions.
+
+Keep documentation concise, factual, and aligned with the code after your edits.

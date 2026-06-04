@@ -1,50 +1,45 @@
-# Panel Scheduling
+# Panel Scheduling Context
 
-A web app for recruiters (**Schedulers**) to schedule panel interviews by pooling **Member** availability from Google Workspace calendars.
+Recruiter-focused scheduling app for pooling Google Workspace calendar availability and booking panel interviews.
 
-## Language
+For code navigation, database locations, route maps, and test entry points, start with `docs/CODEMAP.md`.
 
-**Scheduler**:
-The signed-in operator (typically a Recruiter). Owns Calendars, appears as the organizer on booked Google Calendar events, and manages Meetings.
-_Avoid_: User, account, Viewer
+## Domain Language
 
-**Calendar**:
-A named, saved pool of Members plus booking configuration (durations, caps, working hours, booking window) and a public booking link slug. Not a Google Calendar — our configuration entity.
-_Avoid_: Preset, pool, team
+**Scheduler**: signed-in recruiter/operator. Owns Calendars, manages Meetings, and is the organizer on booked Google Calendar events.
+Avoid: User, account, Viewer.
 
-**Member**:
-A panelist listed in a Calendar whose availability is pooled for scheduling. Has optional cap overrides (higher than Calendar defaults) and working-hour overrides.
-_Avoid_: Teammate, participant, panelist (use Member in code)
+**Calendar**: app-owned scheduling configuration: name, slug, Members, durations, working hours, booking window, caps, and public booking link. This is not a Google Calendar.
+Avoid: Preset, pool, team.
 
-**Meeting**:
-A concrete scheduled occurrence: a time slot, assigned Member, invitees, subject, body, and linked Google Calendar event.
-_Avoid_: Booking, appointment, session
+**Member**: panel interviewer listed on a Calendar. Availability is pooled for scheduling. Members can have cap overrides, working-hour overrides, and a timezone for custom hours.
+Avoid: Teammate, participant, panelist in code.
 
-**Effective timezone**:
-When evaluating whether a slot falls within working hours, the engine uses each Member's **effective timezone** — the Member's own timezone when they have custom hours, otherwise the Calendar timezone. The guest's viewer timezone is used only for UI labels and booking-window display, not for eligibility.
+**Meeting**: concrete scheduled occurrence with assigned Member, time, duration, invitees, subject/body, Google event id, Meet link, and booked-by source.
+Avoid: Booking, appointment, session in persisted/domain code.
 
-**Accessible Member**:
-A Member whose Google Calendar the app can read via domain-wide delegation. Availability displays normally.
-_Avoid_: Shared member, visible member
+## Time And Availability Invariants
 
-**Inaccessible Member**:
-A Member whose calendar cannot be read (wrong email, DWD failure, API error). Shown as an empty column with a no-access indicator — never hidden, never faked as busy.
-_Avoid_: Blocked user, missing calendar
+**Calendar timezone**: IANA timezone for default Calendar working hours. Used for Members without custom working hours.
 
-## Working hours and timezones
+**Member timezone**: required when a Member has custom working hours. Slot eligibility evaluates the Member's hours in their effective timezone.
 
-**Calendar timezone**:
-IANA zone for the Calendar’s default working hours. Used for Members without a custom-hours override.
+**Effective timezone**: `Member.timezone` when custom hours exist; otherwise the Calendar timezone. Used for working-hours eligibility.
 
-**Member timezone**:
-Required when a Member sets custom working hours; slot eligibility evaluates that Member’s hours in this zone (via `effectiveTimezone`), not the guest’s `viewerTimezone`.
+**viewerTimezone**: guest/admin UI timezone for labels, date grouping, booking-window display, and minimum-notice bounds. It does not decide Member working-hours eligibility.
 
-**viewerTimezone** (guest/booking UI):
-Used for booking-window bounds and slot labels in the picker only. Does not change whether a Member is eligible for a slot.
+**Accessible Member**: Google Calendar can be read via domain-wide delegation. Show FreeBusy normally.
 
-## Legacy terms (superseded)
+**Inaccessible Member**: Google Calendar cannot be read. Keep the Member visible with a no-access indicator; never hide them or fake them as busy.
 
-The following terms from the original read-only viewer spec are **retired** in favor of Scheduler / Calendar above:
+## Booking Invariants
+
+- Public booking uses `bookingPolicy: "guest"` and enforces minimum notice.
+- Scheduler/admin booking uses `bookingPolicy: "admin"` and can book sooner than minimum notice.
+- Slot display and assignment must both go through the slot engine eligibility rules: working hours, FreeBusy, caps, and existing Meetings.
+- Google Calendar access is via domain-wide delegation; Scheduler OAuth is identity only.
+
+## Legacy Terms
 
 - **Preset** → **Calendar**
 - **Viewer** → **Scheduler**
