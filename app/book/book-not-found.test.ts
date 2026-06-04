@@ -3,13 +3,14 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 describe("SP-09 public shell and 404", () => {
-  it("uses local brand assets", () => {
+  it("uses Gushwork CDN brand assets in preset", () => {
     const source = readFileSync(
       join(process.cwd(), "lib/brand/gushwork-preset.ts"),
       "utf8",
     );
-    expect(source).toContain("/brand/logo.svg");
-    expect(source).not.toContain("cdn.gushwork.ai");
+    expect(source).toContain("https://cdn.gushwork.ai/gush_new_logo.png");
+    expect(source).toContain("https://cdn.gushwork.ai/gush_fav.ico");
+    expect(source).toContain("Gush Cal");
   });
 
   it("authed not-found wraps admin shell", () => {
