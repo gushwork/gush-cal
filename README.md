@@ -172,7 +172,8 @@ npm run dev
 | `AUTH_GOOGLE_SECRET` | Yes | OAuth Web client secret |
 | `ALLOWED_DOMAIN` | Yes | Workspace domain for Scheduler sign-in (e.g. `acme.com`) |
 | `PORT` | No | Dev/prod server port (default **4000** via `npm run dev`) |
-| `APP_URL` | Yes | Public base URL for `/book/{slug}` links (e.g. `http://localhost:4000`) |
+| `APP_URL` | Yes | Public base URL for `/book/{slug}` links and Auth.js callbacks (e.g. `http://localhost:4000`) |
+| `AUTH_URL` | No | Overrides Auth.js base URL; deploy copies `APP_URL` when unset |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Prod | Service account key JSON (single line) |
 | `GOOGLE_DWD_SUBJECT_EMAIL` | Recommended | Workspace user for FreeBusy impersonation |
 | `USE_STUBS` | No | `1` = stub Google/slot engines (local/CI without DWD) |
@@ -224,6 +225,14 @@ Sub-plan test aliases: `npm run test:sp-02` … `test:sp-06`.
 - Confirm `ALLOWED_DOMAIN` matches your Google account domain.
 - Check OAuth redirect URI is exactly `http://localhost:4000/api/auth/callback/google` (or your `APP_URL` + `/api/auth/callback/google`).
 - Ensure `AUTH_SECRET` is set and stable (changing it invalidates sessions).
+
+### Fly.io: `[auth][error] UntrustedHost` (internal `172.x` host)
+
+Auth.js sees Fly’s internal machine address (`http://172.19.x.x:4000`) or the container bind address (`0.0.0.0:4000`) on proxied requests. Set production `APP_URL` to your public URL (e.g. `https://gush-cal.fly.dev`); the app copies that to `AUTH_URL` for OAuth redirects. See [Auth.js UntrustedHost](https://errors.authjs.dev#untrustedhost).
+
+### Google redirects to `https://0.0.0.0:4000/api/auth/error`
+
+The Docker image binds on `0.0.0.0`; without `AUTH_URL`, Auth.js can build callback URLs from that host. Ensure `APP_URL=https://gush-cal.fly.dev` in `.env.production`, redeploy, and add `https://gush-cal.fly.dev/api/auth/callback/google` in Google Cloud Console.
 
 ### `DATABASE_URL is not set`
 

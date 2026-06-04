@@ -233,6 +233,11 @@ sync_fly_secrets() {
 
   log "Staging Fly.io secrets for $FLY_APP"
 
+  # Auth.js reads AUTH_URL for OAuth redirects; default from APP_URL when unset.
+  if [[ -n "${APP_URL:-}" ]] && [[ -z "${AUTH_URL:-}" ]]; then
+    AUTH_URL="$APP_URL"
+  fi
+
   local -a secret_pairs=()
   local keys=(
     DATABASE_URL
@@ -241,6 +246,7 @@ sync_fly_secrets() {
     AUTH_GOOGLE_SECRET
     ALLOWED_DOMAIN
     APP_URL
+    AUTH_URL
     GOOGLE_DWD_SUBJECT_EMAIL
     GOOGLE_SERVICE_ACCOUNT_JSON
   )

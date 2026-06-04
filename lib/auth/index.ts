@@ -2,11 +2,17 @@ import { eq } from "drizzle-orm";
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { cache } from "react";
+import { applyAuthUrlEnvDefaults } from "@/lib/auth/base-url";
 import { getAllowedDomain, isAllowedEmail } from "@/lib/auth/domain";
 import { getDb } from "@/lib/db/client";
 import { schedulers } from "@/lib/db/schema";
 
+applyAuthUrlEnvDefaults();
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  // Fly (and other reverse proxies) forward requests with internal Host headers;
+  // without this, middleware session checks hit UntrustedHost on 172.x addresses.
+  trustHost: true,
   secret: process.env.AUTH_SECRET,
   providers: [
     Google({
