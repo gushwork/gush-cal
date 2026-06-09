@@ -54,7 +54,7 @@ export function SlotPicker({
   if (slots.length === 0) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-ink-muted">
+        <p className="text-sm text-neutral-500">
           No available times on this day. Try another date or duration.
         </p>
         {onBackToDate ? (
@@ -79,7 +79,7 @@ export function SlotPicker({
             onClick={() => onSelect(slot.startsAt)}
             className={cn(
               "h-auto min-h-[3rem] w-full flex-col gap-0.5 py-2",
-              !selected && "bg-primary-soft text-primary hover:bg-primary/15",
+              !selected && "bg-primary-25 text-primary hover:bg-primary-100",
             )}
           >
             <span className="block w-full truncate font-medium">
@@ -88,7 +88,7 @@ export function SlotPicker({
             <span
               className={cn(
                 "block w-full truncate text-xs font-normal",
-                selected ? "text-white/85" : "text-ink-muted",
+                selected ? "text-white/85" : "text-neutral-500",
               )}
             >
               {slot.durationMinutes} min

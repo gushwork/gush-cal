@@ -16,7 +16,7 @@ describe("SP-02 button system", () => {
     expect(source).toContain("asChild");
     expect(source).toContain('"link"');
     expect(source).toContain("@radix-ui/react-slot");
-    expect(source).toContain("focus-visible:ring-2");
+    expect(source).toContain("focus-visible:ring-[3px]");
   });
 
   it("icon wrapper exports Icon component", async () => {

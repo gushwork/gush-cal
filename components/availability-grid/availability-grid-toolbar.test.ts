@@ -27,5 +27,7 @@ describe("SP-20 availability toolbar", () => {
     expect(source).toContain('data-testid="nav-prev"');
     expect(source).toContain("ChevronLeft");
     expect(source).toContain("ArrowRight");
+    expect(source).toContain("AvailabilityDatePicker");
+    expect(source).toContain("onSelectDate");
   });
 });

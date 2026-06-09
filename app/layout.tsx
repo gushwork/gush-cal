@@ -1,23 +1,24 @@
 import type { Metadata } from "next";
-import { Fraunces, Source_Sans_3 } from "next/font/google";
+import { Host_Grotesk, Inter } from "next/font/google";
 import { BrandStyles } from "@/components/brand/brand-styles";
 import { AppToaster } from "@/components/ui/toaster";
 import { buildRootMetadata } from "@/lib/brand/metadata";
 import { getBrandConfig } from "@/lib/brand/config";
 import "./globals.css";
 
-const fraunces = Fraunces({
-  variable: "--font-display",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
   display: "swap",
   preload: true,
 });
 
-const sourceSans = Source_Sans_3({
-  variable: "--font-body",
+const grotesk = Host_Grotesk({
+  variable: "--font-grotesk",
   subsets: ["latin"],
   display: "swap",
   preload: true,
+  weight: ["400", "500", "600", "700"],
 });
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -35,23 +36,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const brand = getBrandConfig();
-
   return (
     <html
       lang="en"
-      className={`${fraunces.variable} ${sourceSans.variable} h-full antialiased`}
+      className={`${inter.variable} ${grotesk.variable} min-h-screen antialiased`}
     >
-      <head>
-        {brand.fontDisplay && (
-          <link
-            rel="preload"
-            as="style"
-            href={`https://fonts.googleapis.com/css2?family=${encodeURIComponent(brand.fontDisplay).replace(/ /g, "+")}:wght@400;600;700&display=swap`}
-          />
-        )}
-      </head>
-      <body className="min-h-full flex flex-col bg-paper text-ink">
+      <body className="flex min-h-screen flex-col bg-background font-sans text-foreground">
         <BrandStyles />
         {children}
         <AppToaster />

@@ -1,5 +1,6 @@
 export type BrandConfig = {
   appName: string;
+  poweredBy: string;
   logoUrl: string;
   faviconUrl: string;
   primaryColor: string;
@@ -9,11 +10,13 @@ export type BrandConfig = {
 
 export const GUSHWORK_PRESET: BrandConfig = {
   appName: "Gush Cal",
-  logoUrl: "https://cdn.gushwork.ai/gush_new_logo.png",
-  faviconUrl: "https://cdn.gushwork.ai/gush_fav.ico",
-  primaryColor: "#0066FF",
-  accentColor: "#0047AB",
+  logoUrl: "https://cdn.gushwork.ai/v2/gush_new_logo.svg",
+  faviconUrl:
+    "https://cdn.prod.website-files.com/65c292289fb0ea1ff3a84bd3/6807f0d918342111b78873bd_gushwork-fav-con-32X32px.svg",
+  primaryColor: "#0070FF",
+  accentColor: "#0061e0",
   fontDisplay: null,
+  poweredBy: "Gushwork AI",
 };
 
 /** Mix a hex color toward white (0 = original, 1 = white). */
@@ -30,7 +33,7 @@ export function mixWithWhite(hex: string, whiteRatio: number): string {
 
 export function deriveSoftVariants(primary: string, accent: string) {
   return {
-    primarySoft: mixWithWhite(primary, 0.9),
-    accentSoft: mixWithWhite(accent, 0.92),
+    primarySoft: mixWithWhite(primary, 0.92),
+    accentSoft: mixWithWhite(accent, 0.9),
   };
 }

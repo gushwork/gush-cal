@@ -18,8 +18,8 @@ describe("SP-14 booking flow shell", () => {
     );
     expect(source).toContain("AlertBanner");
     expect(source).toContain('aria-live="polite"');
-    expect(source).toContain("max-w-[var(--content-booking)]");
-    expect(source).toContain("shadow-[var(--shadow-sm)]");
+    expect(source).toContain("border-neutral-100");
+    expect(source).toContain("shadow-s3");
     expect(source).toContain("safe-area-inset-bottom");
     expect(source).toContain("toast(");
     expect(source).toContain("useSearchParams");
@@ -56,7 +56,7 @@ describe("SP-14 booking flow shell", () => {
 
     expect(html).toContain("md:flex-row");
     expect(html).toContain("sticky bottom-0");
-    expect(html).toContain("content-booking");
+    expect(html).toContain("border-neutral-100");
     expect(html).toContain("Duration");
   });
 });

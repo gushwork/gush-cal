@@ -8,6 +8,7 @@ export type { BrandConfig };
 export function getBrandConfig(): BrandConfig {
   return {
     appName: process.env.BRAND_APP_NAME?.trim() || GUSHWORK_PRESET.appName,
+    poweredBy: process.env.BRAND_POWERED_BY?.trim() || GUSHWORK_PRESET.poweredBy,
     logoUrl: process.env.BRAND_LOGO_URL?.trim() || GUSHWORK_PRESET.logoUrl,
     faviconUrl:
       process.env.BRAND_FAVICON_URL?.trim() || GUSHWORK_PRESET.faviconUrl,

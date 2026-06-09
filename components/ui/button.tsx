@@ -18,20 +18,20 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const variants: Record<ButtonVariant, string> = {
   primary:
-    "bg-primary text-white hover:bg-primary/90 focus-visible:ring-primary/40",
+    "bg-primary text-white hover:bg-primary-600 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
   secondary:
-    "border border-border bg-surface text-ink hover:bg-primary-soft focus-visible:ring-primary/40",
+    "border border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-25 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
   ghost:
-    "text-ink-muted hover:text-ink hover:bg-primary-soft/50 focus-visible:ring-primary/40",
+    "text-neutral-500 hover:bg-neutral-25 hover:text-neutral-900 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
   destructive:
-    "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/40",
+    "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 focus-visible:ring-[3px]",
   link: "text-primary underline-offset-4 hover:underline focus-visible:ring-primary/40",
 };
 
 const sizes: Record<ButtonSize, string> = {
-  sm: "px-3 py-1.5 text-xs",
-  md: "px-4 py-2.5 text-sm",
-  lg: "px-6 py-3 text-base",
+  sm: "h-8 gap-1.5 px-3 text-xs",
+  md: "h-9 gap-2 px-4 text-sm",
+  lg: "h-10 gap-2 px-6 text-sm",
 };
 
 export function Button({
@@ -51,7 +51,7 @@ export function Button({
       type={asChild ? undefined : "button"}
       disabled={disabled || loading}
       className={cn(
-        "btn-press interactive inline-flex cursor-pointer items-center justify-center rounded-[var(--radius-control)] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        "btn-press interactive inline-flex shrink-0 cursor-pointer items-center justify-center rounded-md font-medium whitespace-nowrap transition-all outline-none disabled:pointer-events-none disabled:opacity-50 [&_svg:not([class*='size-'])]:size-4",
         variant !== "link" && sizes[size],
         variants[variant],
         className,

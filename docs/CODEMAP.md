@@ -120,6 +120,7 @@ Booking confirm flow:
 ### Availability View
 
 - UI: `components/availability-grid/availability-grid.tsx`.
+- Date navigation: toolbar popover (`availability-date-picker.tsx`); optional URL `?date=YYYY-MM-DD&view=day|week` after first navigation (`availability-url.ts`).
 - Member busy columns: `app/api/calendars/[id]/availability/route.ts` + `build-member-busy-blocks.ts`; these show Google FreeBusy/access only.
 - Bookable column: `components/availability-grid/fetch-bookable-slots.ts` -> slot engine with `bookingPolicy: "admin"`; this respects caps, working hours, FreeBusy, and existing Meetings.
 - Grid helpers: `components/availability-grid/time-utils.ts`, `grid-hour-lines.tsx`, `member-column.tsx`, `bookable-overlay.tsx`.

@@ -22,7 +22,7 @@ describe("SP-27 micro-interaction craft", () => {
     expect(source).toContain("btn-press");
   });
 
-  it("input and textarea use focus-ring", () => {
+  it("input and textarea use ring focus tokens", () => {
     const input = readFileSync(
       join(process.cwd(), "components/ui/input.tsx"),
       "utf8",
@@ -31,8 +31,8 @@ describe("SP-27 micro-interaction craft", () => {
       join(process.cwd(), "components/ui/textarea.tsx"),
       "utf8",
     );
-    expect(input).toContain("focus-ring");
-    expect(textarea).toContain("focus-ring");
+    expect(input).toContain("focus-visible:ring-[3px]");
+    expect(textarea).toContain("focus-visible:ring-[3px]");
     expect(input).not.toContain("focus:ring-2");
     expect(textarea).not.toContain("focus:ring-2");
   });

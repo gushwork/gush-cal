@@ -9,10 +9,10 @@ export type AlertBannerProps = {
 };
 
 const variantStyles: Record<AlertBannerVariant, string> = {
-  error: "border-destructive/30 bg-destructive-soft text-destructive",
-  warning: "border-accent/30 bg-accent-soft text-accent",
-  info: "border-primary/30 bg-primary-soft text-ink",
-  success: "border-success-ink/30 bg-success-soft text-success-ink",
+  error: "border-gw-red-100 bg-gw-red-100 text-gw-red-700",
+  warning: "border-gw-orange-100 bg-gw-orange-100 text-gw-orange-700",
+  info: "border-gw-blue-100 bg-gw-blue-100 text-gw-blue-700",
+  success: "border-gw-green-100 bg-gw-green-100 text-gw-green-700",
 };
 
 export function AlertBanner({
@@ -24,7 +24,7 @@ export function AlertBanner({
     <div
       role="alert"
       className={cn(
-        "rounded-[var(--radius-control)] border px-4 py-3 text-sm",
+        "rounded-lg border px-4 py-3 text-sm",
         variantStyles[variant],
         className,
       )}

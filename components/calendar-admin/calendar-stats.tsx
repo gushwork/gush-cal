@@ -16,36 +16,38 @@ export function CalendarStats({
   className,
 }: CalendarStatsProps) {
   return (
-    <dl
+    <div
       className={cn(
-        "grid grid-cols-2 gap-4 sm:grid-cols-2",
+        "flex flex-col divide-y divide-neutral-100 overflow-hidden rounded-xl border border-neutral-100 bg-white shadow-s3 sm:flex-row sm:divide-x sm:divide-y-0",
         className,
       )}
     >
       <Link
         href={`/calendars/${calendarId}?tab=members`}
-        className="interactive-lift interactive rounded-xl border border-border bg-surface px-4 py-3 hover:border-primary/30"
+        className="interactive flex flex-1 flex-col gap-1.5 px-6 py-6 transition-colors hover:bg-neutral-25"
       >
-        <dt className="label-secondary flex items-center gap-2">
-          <Users className="h-4 w-4" aria-hidden />
-          Members
-        </dt>
-        <dd className="numeric mt-1 text-2xl font-semibold text-ink">
+        <div className="flex items-center gap-1.5">
+          <Users className="h-5 w-5 text-primary-500" aria-hidden />
+          <span className="text-base font-normal text-neutral-900">Members</span>
+        </div>
+        <div className="font-grotesk text-[32px] leading-[140%] font-semibold text-neutral-900">
           {memberCount}
-        </dd>
+        </div>
       </Link>
       <Link
         href={`/calendars/${calendarId}/meetings`}
-        className="interactive-lift interactive rounded-xl border border-border bg-surface px-4 py-3 hover:border-primary/30"
+        className="interactive flex flex-1 flex-col gap-1.5 px-6 py-6 transition-colors hover:bg-neutral-25"
       >
-        <dt className="label-secondary flex items-center gap-2">
-          <CalendarClock className="h-4 w-4" aria-hidden />
-          Upcoming meetings
-        </dt>
-        <dd className="numeric mt-1 text-2xl font-semibold text-ink">
+        <div className="flex items-center gap-1.5">
+          <CalendarClock className="h-5 w-5 text-primary-500" aria-hidden />
+          <span className="text-base font-normal text-neutral-900">
+            Upcoming meetings
+          </span>
+        </div>
+        <div className="font-grotesk text-[32px] leading-[140%] font-semibold text-neutral-900">
           {upcomingMeetingCount}
-        </dd>
+        </div>
       </Link>
-    </dl>
+    </div>
   );
 }

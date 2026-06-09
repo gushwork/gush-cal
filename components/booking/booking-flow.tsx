@@ -589,102 +589,109 @@ export function BookingFlow({
           </AlertBanner>
         ) : null}
 
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <h2 className="min-w-0 font-display text-lg font-medium text-ink">
-            {stepTitle(step, selectedDate, viewerTimezone)}
-          </h2>
-          <TimezoneSelector
-            value={viewerTimezone}
-            onChange={handleTimezoneChange}
-          />
-        </div>
-
-        <div key={step} className="flex-1 pb-4">
-          <div className="animate-step-in">
-            {step === "duration" ? (
-              <BookingDurationPanel
-                durations={durations}
-                selectedMinutes={durationMinutes}
-                onSelectMinutes={setDurationMinutes}
-                onContinue={noopContinue}
-              />
-            ) : null}
-
-            {step === "date" && durationMinutes ? (
-              <BookingDatePanel
-                visibleMonth={visibleMonth}
-                onMonthChange={(year, month) => setVisibleMonth({ year, month })}
-                slotCountsByDate={slotCountsByDate}
-                selectedDate={selectedDate}
-                onSelectDate={setSelectedDate}
-                minDate={minDate}
-                maxDate={maxDate}
-                slotsLoading={slotsLoading}
-                viewerTimezone={viewerTimezone}
-                onContinue={noopContinue}
-              />
-            ) : null}
-
-            {step === "time" ? (
-              <SlotPicker
-                slots={slotsForSelectedDate}
-                selectedStartsAt={selectedStartsAt}
-                onSelect={setSelectedStartsAt}
-                loading={slotsLoading}
-                viewerTimezone={viewerTimezone}
-                showMemberCount={showPanelistCount}
-                onBackToDate={() => handleStepClick("date")}
-              />
-            ) : null}
-
-            {step === "details" && selectedDate && selectedStartsAt && durationMinutes ? (
-              <BookingDetailsPanel
-                calendarName={calendarName}
-                dateKey={selectedDate}
-                startsAt={selectedStartsAt}
-                durationMinutes={durationMinutes}
-                viewerTimezone={viewerTimezone}
-                invitees={invitees}
-                subject={subject}
-                body={body}
-                guestEmail={guestEmail}
-                showGuestEmail={isPublic}
-                onInviteesChange={setInvitees}
-                onSubjectChange={setSubject}
-                onBodyChange={setBody}
-                onGuestEmailChange={setGuestEmail}
-                loading={submitting}
-                onContinue={noopContinue}
-              />
-            ) : null}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-neutral-100 bg-white shadow-s3">
+          <div className="flex flex-col gap-3 border-b border-neutral-100 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+            <h2 className="min-w-0 font-grotesk text-lg font-medium text-neutral-900">
+              {stepTitle(step, selectedDate, viewerTimezone)}
+            </h2>
+            <TimezoneSelector
+              value={viewerTimezone}
+              onChange={handleTimezoneChange}
+            />
           </div>
-        </div>
 
-        <footer className="sticky bottom-0 -mx-[var(--page-px)] border-t border-border bg-paper/95 px-[var(--page-px)] py-3 shadow-[var(--shadow-sm)] backdrop-blur-sm supports-[backdrop-filter]:bg-paper/80 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          <div className="mx-auto flex min-h-[3.25rem] max-w-[var(--content-booking)] items-center justify-between gap-3">
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={!showBack}
-              onClick={handleBack}
-            >
-              Back
-            </Button>
-            <Button
-              type="button"
-              disabled={!canContinue}
-              loading={step === "details" && submitting}
-              onClick={handleContinue}
-            >
-              {step === "details" ? "Confirm booking" : "Continue"}
-            </Button>
+          <div key={step} className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+            <div className="animate-step-in">
+              {step === "duration" ? (
+                <BookingDurationPanel
+                  durations={durations}
+                  selectedMinutes={durationMinutes}
+                  onSelectMinutes={setDurationMinutes}
+                  onContinue={noopContinue}
+                />
+              ) : null}
+
+              {step === "date" && durationMinutes ? (
+                <BookingDatePanel
+                  visibleMonth={visibleMonth}
+                  onMonthChange={(year, month) =>
+                    setVisibleMonth({ year, month })
+                  }
+                  slotCountsByDate={slotCountsByDate}
+                  selectedDate={selectedDate}
+                  onSelectDate={setSelectedDate}
+                  minDate={minDate}
+                  maxDate={maxDate}
+                  slotsLoading={slotsLoading}
+                  viewerTimezone={viewerTimezone}
+                  onContinue={noopContinue}
+                />
+              ) : null}
+
+              {step === "time" ? (
+                <SlotPicker
+                  slots={slotsForSelectedDate}
+                  selectedStartsAt={selectedStartsAt}
+                  onSelect={setSelectedStartsAt}
+                  loading={slotsLoading}
+                  viewerTimezone={viewerTimezone}
+                  showMemberCount={showPanelistCount}
+                  onBackToDate={() => handleStepClick("date")}
+                />
+              ) : null}
+
+              {step === "details" &&
+              selectedDate &&
+              selectedStartsAt &&
+              durationMinutes ? (
+                <BookingDetailsPanel
+                  calendarName={calendarName}
+                  dateKey={selectedDate}
+                  startsAt={selectedStartsAt}
+                  durationMinutes={durationMinutes}
+                  viewerTimezone={viewerTimezone}
+                  invitees={invitees}
+                  subject={subject}
+                  body={body}
+                  guestEmail={guestEmail}
+                  showGuestEmail={isPublic}
+                  onInviteesChange={setInvitees}
+                  onSubjectChange={setSubject}
+                  onBodyChange={setBody}
+                  onGuestEmailChange={setGuestEmail}
+                  loading={submitting}
+                  onContinue={noopContinue}
+                />
+              ) : null}
+            </div>
           </div>
-          {isPublic && step === "details" ? (
-            <p className="mx-auto mt-2 max-w-[var(--content-booking)] text-center text-xs text-ink-muted">
-              You&apos;ll receive a calendar invite with Google Meet.
-            </p>
-          ) : null}
-        </footer>
+
+          <footer className="sticky bottom-0 shrink-0 border-t border-neutral-100 bg-neutral-25 px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <div className="flex items-center justify-between gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!showBack}
+                onClick={handleBack}
+              >
+                Back
+              </Button>
+              <Button
+                type="button"
+                disabled={!canContinue}
+                loading={step === "details" && submitting}
+                onClick={handleContinue}
+              >
+                {step === "details" ? "Confirm booking" : "Continue"}
+              </Button>
+            </div>
+            {isPublic && step === "details" ? (
+              <p className="mt-2 text-center text-xs text-neutral-500">
+                You&apos;ll receive a calendar invite with Google Meet.
+              </p>
+            ) : null}
+          </footer>
+        </div>
       </div>
     </div>
   );

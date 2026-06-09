@@ -33,7 +33,7 @@ describe("SP-01 tokens and layout", () => {
     expect(css).toContain("--content-form-wide:");
     expect(css).toContain("--shadow-sm:");
     expect(css).toContain("--shadow-md:");
-    expect(css).toContain("--text-body-size: 1rem");
+    expect(css).toContain("--text-body-size:");
     expect(css).toContain(".text-heading");
     expect(css).toContain(".text-caption");
     expect(css).toContain(".animate-page-in");

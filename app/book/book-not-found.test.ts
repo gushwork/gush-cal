@@ -8,8 +8,8 @@ describe("SP-09 public shell and 404", () => {
       join(process.cwd(), "lib/brand/gushwork-preset.ts"),
       "utf8",
     );
-    expect(source).toContain("https://cdn.gushwork.ai/gush_new_logo.png");
-    expect(source).toContain("https://cdn.gushwork.ai/gush_fav.ico");
+    expect(source).toContain("https://cdn.gushwork.ai/v2/gush_new_logo.svg");
+    expect(source).toContain("gushwork-fav-con");
     expect(source).toContain("Gush Cal");
   });
 

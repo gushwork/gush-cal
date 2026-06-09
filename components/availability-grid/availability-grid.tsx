@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   CalendarBundle,
   CalendarMember,
@@ -10,6 +11,11 @@ import type {
 import { AlertBanner, Skeleton } from "@/components/ui";
 import { toDateKey } from "@/components/booking/group-slots-by-date";
 import { AvailabilityGridToolbar } from "./availability-grid-toolbar";
+import {
+  buildAvailabilitySearchParams,
+  parseAvailabilitySearchParams,
+  type AvailabilityViewMode,
+} from "./availability-url";
 import { BookableOverlay } from "./bookable-overlay";
 import { GridHourLines } from "./grid-hour-lines";
 import { fetchBookableSlots } from "./fetch-bookable-slots";
@@ -29,7 +35,7 @@ import {
   blockPositionPercent,
 } from "./time-utils";
 
-type ViewMode = "day" | "week";
+type ViewMode = AvailabilityViewMode;
 
 const LOAD_DEBOUNCE_MS = 300;
 
@@ -102,9 +108,25 @@ function AvailabilityGridSkeleton({ viewMode }: { viewMode: ViewMode }) {
 }
 
 export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const timeZone = useMemo(() => getViewerTimezone(), []);
-  const [anchorDate, setAnchorDate] = useState(() => new Date());
-  const [viewMode, setViewMode] = useState<ViewMode>("day");
+  const initialParams = useMemo(
+    () =>
+      parseAvailabilitySearchParams(
+        new URLSearchParams(searchParams.toString()),
+        timeZone,
+      ),
+    [searchParams, timeZone],
+  );
+  const userNavigatedRef = useRef(false);
+  const [anchorDate, setAnchorDate] = useState(
+    () => initialParams.anchorDate,
+  );
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    () => initialParams.viewMode,
+  );
   const [durationMinutes, setDurationMinutes] = useState(
     () => bundle.durations[0] ?? 30,
   );
@@ -116,6 +138,57 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [configWarning, setConfigWarning] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialParams.urlCorrection) {
+      router.replace(
+        `${pathname}?${initialParams.urlCorrection.toString()}`,
+      );
+    }
+  }, [initialParams.urlCorrection, pathname, router]);
+
+  const syncUrl = useCallback(
+    (date: Date, mode: ViewMode) => {
+      if (!userNavigatedRef.current) {
+        userNavigatedRef.current = true;
+      }
+      const next = buildAvailabilitySearchParams(date, mode, timeZone);
+      router.replace(`${pathname}?${next.toString()}`);
+    },
+    [pathname, router, timeZone],
+  );
+
+  const navigateToDate = useCallback(
+    (date: Date) => {
+      userNavigatedRef.current = true;
+      setAnchorDate(date);
+      syncUrl(date, viewMode);
+    },
+    [syncUrl, viewMode],
+  );
+
+  const navigateToday = useCallback(() => {
+    navigateToDate(new Date());
+  }, [navigateToDate]);
+
+  const shiftAnchor = useCallback(
+    (days: number) => {
+      const next = addLocalDays(anchorDate, days, timeZone);
+      userNavigatedRef.current = true;
+      setAnchorDate(next);
+      syncUrl(next, viewMode);
+    },
+    [anchorDate, syncUrl, timeZone, viewMode],
+  );
+
+  const changeViewMode = useCallback(
+    (mode: ViewMode) => {
+      userNavigatedRef.current = true;
+      setViewMode(mode);
+      syncUrl(anchorDate, mode);
+    },
+    [anchorDate, syncUrl],
+  );
 
   const range = useMemo(() => {
     if (viewMode === "day") {
@@ -237,15 +310,15 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
         calendarName={bundle.name}
         timeZone={timeZone}
         rangeLabel={rangeLabel}
+        anchorDate={anchorDate}
         viewMode={viewMode}
         durationMinutes={durationMinutes}
         durations={bundle.durations}
-        onViewModeChange={setViewMode}
+        onViewModeChange={changeViewMode}
         onDurationChange={setDurationMinutes}
-        onToday={() => setAnchorDate(new Date())}
-        onShiftAnchor={(days) =>
-          setAnchorDate((current) => addLocalDays(current, days, timeZone))
-        }
+        onToday={navigateToday}
+        onShiftAnchor={shiftAnchor}
+        onSelectDate={navigateToDate}
       />
 
       {configWarning ? (

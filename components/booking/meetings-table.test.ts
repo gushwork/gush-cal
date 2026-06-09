@@ -11,7 +11,7 @@ describe("SP-24 meetings table", () => {
 
   it("uses caption-style headers, Join column, sr-only Actions, and Avatar", () => {
     const source = readFileSync(tablePath, "utf8");
-    expect(source).toContain("label-secondary");
+    expect(source).toContain("uppercase tracking-wide");
     expect(source).toContain("Member");
     expect(source).toContain("Join");
     expect(source).not.toMatch(/>\s*Meet\s*</);
@@ -30,7 +30,7 @@ describe("SP-24 meetings table", () => {
 
   it("cancel uses destructive hover and descriptive aria-label", () => {
     const source = readFileSync(tablePath, "utf8");
-    expect(source).toContain("hover:text-destructive");
+    expect(source).toContain("hover:text-gw-red-700");
     expect(source).toContain("aria-label={`Cancel ${meeting.subject}`}");
   });
 

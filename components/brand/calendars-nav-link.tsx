@@ -16,7 +16,7 @@ export function CalendarsNavLink() {
         "interactive pb-0.5 font-medium",
         isActive
           ? "border-b-2 border-primary text-primary"
-          : "text-ink-muted hover:text-ink",
+          : "text-neutral-500 hover:text-neutral-900",
       )}
     >
       Calendars

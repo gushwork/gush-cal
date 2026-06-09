@@ -9,6 +9,16 @@ const nextConfig: NextConfig = {
         hostname: "www.gushwork.ai",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "cdn.gushwork.ai",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn.prod.website-files.com",
+        pathname: "/**",
+      },
     ],
   },
 };

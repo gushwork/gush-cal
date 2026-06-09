@@ -4,9 +4,9 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui";
 import { Icon } from "@/components/ui/icon";
+import { AvailabilityDatePicker } from "./availability-date-picker";
+import type { AvailabilityViewMode } from "./availability-url";
 import { GridLegend } from "./grid-legend";
-
-type ViewMode = "day" | "week";
 
 function ToggleGroup({
   children,
@@ -56,13 +56,15 @@ export type AvailabilityGridToolbarProps = {
   calendarName: string;
   timeZone: string;
   rangeLabel: string;
-  viewMode: ViewMode;
+  anchorDate: Date;
+  viewMode: AvailabilityViewMode;
   durationMinutes: number;
   durations: number[];
-  onViewModeChange: (mode: ViewMode) => void;
+  onViewModeChange: (mode: AvailabilityViewMode) => void;
   onDurationChange: (minutes: number) => void;
   onToday: () => void;
   onShiftAnchor: (days: number) => void;
+  onSelectDate: (date: Date) => void;
 };
 
 export function AvailabilityGridToolbar({
@@ -70,6 +72,7 @@ export function AvailabilityGridToolbar({
   calendarName,
   timeZone,
   rangeLabel,
+  anchorDate,
   viewMode,
   durationMinutes,
   durations,
@@ -77,6 +80,7 @@ export function AvailabilityGridToolbar({
   onDurationChange,
   onToday,
   onShiftAnchor,
+  onSelectDate,
 }: AvailabilityGridToolbarProps) {
   const shiftDays = viewMode === "day" ? 1 : 7;
   const navLabel =
@@ -132,7 +136,13 @@ export function AvailabilityGridToolbar({
           >
             <Icon icon={ChevronRight} size="sm" />
           </Button>
-          <span className="px-1 text-sm font-medium text-ink">{rangeLabel}</span>
+          <AvailabilityDatePicker
+            rangeLabel={rangeLabel}
+            anchorDate={anchorDate}
+            viewMode={viewMode}
+            timeZone={timeZone}
+            onSelectDate={onSelectDate}
+          />
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

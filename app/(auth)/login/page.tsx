@@ -1,5 +1,4 @@
 import { AppShell } from "@/components/brand/app-shell";
-import { PageContainer } from "@/components/layout/page-container";
 import { AlertBanner, Button } from "@/components/ui";
 import { getBrandConfig } from "@/lib/brand/config";
 import { pageTitle } from "@/lib/brand/metadata";
@@ -55,42 +54,43 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <AppShell variant="auth-minimal">
-      <PageContainer variant="narrow" className="w-full py-8">
-        <div className="mx-auto w-full max-w-md">
-          <div className="mb-8 flex flex-col items-center text-center">
-            <div
-              className="animate-fade-up"
-              style={{ animationDelay: "0ms" }}
-            >
-              <Image
-                src={brand.logoUrl}
-                alt={`${brand.appName} logo`}
-                width={72}
-                height={72}
-                priority
-                className="h-[72px] w-[72px] shrink-0"
-                unoptimized
-              />
-            </div>
+      <div className="relative flex flex-1 flex-col items-center justify-center px-4 py-8">
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-transparent via-primary-25/30 to-primary-100/20" />
+        <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-4">
+          <div
+            className="animate-fade-up"
+            style={{ animationDelay: "0ms" }}
+          >
+            <Image
+              src={brand.logoUrl}
+              alt={`${brand.appName} logo`}
+              width={72}
+              height={72}
+              priority
+              className="h-[72px] w-[72px] shrink-0 object-contain"
+              unoptimized
+            />
+          </div>
+          <div className="text-center">
             <h1
-              className="animate-fade-up text-display leading-display mt-6 font-display font-semibold text-ink"
+              className="animate-fade-up font-grotesk text-display leading-display font-semibold text-neutral-900"
               style={{ animationDelay: "80ms" }}
             >
               {brand.appName}
             </h1>
             <p
-              className="animate-fade-up prose-measure text-body leading-body mt-3 text-ink-muted"
+              className="animate-fade-up prose-measure mx-auto mt-3 text-sm leading-body text-neutral-500"
               style={{ animationDelay: "80ms" }}
             >
               Schedule panel interviews with pooled availability.
             </p>
           </div>
 
-          <ul className="mb-8 space-y-3">
+          <ul className="w-full max-w-sm space-y-3">
             {features.map(({ icon: Icon, label }) => (
               <li
                 key={label}
-                className="flex items-start gap-3 text-sm text-ink-muted"
+                className="flex items-start gap-3 text-sm text-neutral-500"
               >
                 <Icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden />
                 <span>{label}</span>
@@ -99,11 +99,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </ul>
 
           <div
-            className="animate-fade-up rounded-[var(--radius-control)] border border-border bg-surface p-6 sm:p-8"
+            className="animate-fade-up w-full max-w-[420px] rounded-lg border border-neutral-100 bg-white p-6 shadow-s4 sm:p-8"
             style={{ animationDelay: "160ms" }}
           >
-            <h2 className="text-heading font-semibold text-ink">Sign in</h2>
-            <p className="mt-2 text-sm text-ink-muted">
+            <h2 className="text-heading font-semibold text-neutral-900">Sign in</h2>
+            <p className="mt-2 text-sm text-neutral-500">
               Use your Google Workspace account to manage calendars and schedule
               meetings.
             </p>
@@ -133,19 +133,19 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               </Button>
             </form>
 
-            <p className="mt-4 text-center text-xs text-ink-muted">
+            <p className="mt-4 text-center text-xs text-neutral-500">
               Only approved workspace accounts can access admin features.
             </p>
           </div>
 
           <p
-            className="animate-fade-up mt-6 text-center text-caption text-ink-muted"
+            className="animate-fade-up text-caption text-neutral-500"
             style={{ animationDelay: "240ms" }}
           >
-            Powered by {brand.appName}
+            Powered by {brand.poweredBy}
           </p>
         </div>
-      </PageContainer>
+      </div>
     </AppShell>
   );
 }

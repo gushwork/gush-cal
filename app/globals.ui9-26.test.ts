@@ -33,13 +33,14 @@ describe("SP-26 typography and spacing", () => {
     expect(css).toContain("tabular-nums");
   });
 
-  it("applies label-secondary and numeric in calendar stats", () => {
+  it("applies grotesk metrics in calendar stats", () => {
     const source = readFileSync(
       join(process.cwd(), "components/calendar-admin/calendar-stats.tsx"),
       "utf8",
     );
-    expect(source).toContain("label-secondary");
-    expect(source).toContain("numeric");
+    expect(source).toContain("font-grotesk");
+    expect(source).toContain("text-[32px]");
+    expect(source).toContain("shadow-s3");
   });
 
   it("form labels use label-secondary via Label component", () => {

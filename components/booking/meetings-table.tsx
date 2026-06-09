@@ -52,13 +52,13 @@ function MeetingRows({
           <tr
             key={meeting.id}
             className={cn(
-              "interactive-row bg-paper/60",
-              isPast && "text-ink-muted",
+              "interactive-row border-b border-neutral-100 transition-colors last:border-0 hover:bg-neutral-25",
+              isPast && "text-neutral-500",
             )}
           >
             <td className="px-4 py-3 whitespace-nowrap">
               <div className="flex flex-wrap items-center gap-2">
-                <span className={isPast ? "text-ink-muted" : "text-ink"}>
+                <span className={isPast ? "text-neutral-500" : "text-neutral-900"}>
                   {formatMeetingTime(meeting.startsAt)}
                 </span>
                 {showPastBadge && isPast && (
@@ -66,15 +66,15 @@ function MeetingRows({
                 )}
               </div>
               {relativeTime && (
-                <div className="text-xs text-ink-muted">{relativeTime}</div>
+                <div className="text-xs text-neutral-500">{relativeTime}</div>
               )}
-              <div className="text-xs text-ink-muted">
+              <div className="text-xs text-neutral-500">
                 {meeting.durationMinutes} min
               </div>
             </td>
             <td className="px-4 py-3">
-              <div className="text-ink">{meeting.subject}</div>
-              <div className="mt-0.5 text-xs text-ink-muted">
+              <div className="text-neutral-900">{meeting.subject}</div>
+              <div className="mt-0.5 text-xs text-neutral-500">
                 {formatInvitees(meeting)}
               </div>
             </td>
@@ -99,7 +99,7 @@ function MeetingRows({
                   </a>
                 </Button>
               ) : (
-                <span className="text-ink-muted">—</span>
+                <span className="text-neutral-500">—</span>
               )}
             </td>
             <td className="px-4 py-3 text-right">
@@ -111,12 +111,12 @@ function MeetingRows({
                   disabled={cancellingId === meeting.id}
                   onClick={() => onCancelRequest(meeting.id)}
                   aria-label={`Cancel ${meeting.subject}`}
-                  className="px-2 py-1 text-ink-muted hover:bg-destructive-soft hover:text-destructive"
+                  className="px-2 py-1 text-neutral-500 hover:bg-gw-red-100 hover:text-gw-red-700"
                 >
                   {cancellingId === meeting.id ? "Cancelling…" : "Cancel"}
                 </Button>
               ) : (
-                <span className="text-ink-muted">—</span>
+                <span className="text-neutral-500">—</span>
               )}
             </td>
           </tr>
@@ -141,33 +141,33 @@ function MeetingsTableSection({
 
   return (
     <section className="space-y-3">
-      <h2 className="font-display text-lg font-semibold text-ink">{title}</h2>
+      <h2 className="font-grotesk text-lg font-semibold text-neutral-900">{title}</h2>
       <Card padding="sm" className="overflow-hidden p-0">
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="border-b border-border bg-paper text-left text-ink-muted">
-              <tr>
-                <th scope="col" className="label-secondary px-4 py-3 font-medium">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-y border-neutral-100 bg-neutral-25 text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                <th scope="col" className="px-4 py-3 text-left">
                   When
                 </th>
-                <th scope="col" className="label-secondary px-4 py-3 font-medium">
+                <th scope="col" className="px-4 py-3 text-left">
                   Subject / invitees
                 </th>
-                <th scope="col" className="label-secondary px-4 py-3 font-medium">
+                <th scope="col" className="px-4 py-3 text-left">
                   Member
                 </th>
-                <th scope="col" className="label-secondary px-4 py-3 font-medium">
+                <th scope="col" className="px-4 py-3 text-left">
                   Booked by
                 </th>
-                <th scope="col" className="label-secondary px-4 py-3 font-medium">
+                <th scope="col" className="px-4 py-3 text-left">
                   Join
                 </th>
-                <th scope="col" className="label-secondary px-4 py-3 font-medium">
+                <th scope="col" className="px-4 py-3 text-left">
                   <span className="sr-only">Actions</span>
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody>
               <MeetingRows
                 meetings={meetings}
                 memberNames={memberNames}

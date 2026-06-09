@@ -13,7 +13,7 @@ describe("SP-04 AlertBanner and Toast", () => {
       join(process.cwd(), "components/ui/alert-banner.tsx"),
       "utf8",
     );
-    expect(source).toContain("destructive-soft");
+    expect(source).toContain("gw-red-100");
     expect(source).toContain('role="alert"');
     expect(source).not.toContain("bg-red-50");
   });

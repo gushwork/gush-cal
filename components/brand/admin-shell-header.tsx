@@ -28,7 +28,7 @@ export function AdminShellHeader({ children, className }: AdminShellHeaderProps)
     <header
       ref={headerRef}
       className={cn(
-        "scroll-shadow-top sticky top-0 z-40 border-b border-border bg-surface",
+        "scroll-shadow-top sticky top-0 z-20 border-b border-neutral-100 bg-white",
         className,
       )}
     >
