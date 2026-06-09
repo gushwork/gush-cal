@@ -9,10 +9,10 @@ export type AlertBannerProps = {
 };
 
 const variantStyles: Record<AlertBannerVariant, string> = {
-  error: "border-gw-red-100 bg-gw-red-100 text-gw-red-700",
-  warning: "border-gw-orange-100 bg-gw-orange-100 text-gw-orange-700",
-  info: "border-gw-blue-100 bg-gw-blue-100 text-gw-blue-700",
-  success: "border-gw-green-100 bg-gw-green-100 text-gw-green-700",
+  error: "border-status-error-100 bg-status-error-100 text-status-error-700",
+  warning: "border-status-warning-100 bg-status-warning-100 text-status-warning-700",
+  info: "border-status-info-100 bg-status-info-100 text-status-info-700",
+  success: "border-status-success-100 bg-status-success-100 text-status-success-700",
 };
 
 export function AlertBanner({

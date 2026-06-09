@@ -325,16 +325,17 @@ See also [docs/adr/001-google-dwd.md](./docs/adr/001-google-dwd.md) for Workspac
 
 ## Brand customization
 
-The app ships with **Gushwork** defaults (Resolution Blue primary, warm paper background). Override via environment variables — all are optional:
+The app ships with neutral defaults (`lib/brand/default-preset.ts`). Override via environment variables — all are optional. For a Gushwork-branded preset, see `lib/brand/gushwork-preset.ts`.
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `BRAND_APP_NAME` | `Gushwork Scheduling` | App title in shell, metadata, and login |
-| `BRAND_LOGO_URL` | `https://www.gushwork.ai/logo.svg` | Header logo (URL or path under `public/`) |
+| `BRAND_APP_NAME` | `Scheduling` | App title in shell, metadata, and login |
+| `BRAND_LOGO_URL` | `/brand/logo.svg` | Header logo (URL or path under `public/`) |
 | `BRAND_FAVICON_URL` | `/favicon.ico` | Browser tab icon |
-| `BRAND_PRIMARY_COLOR` | `#0066FF` | Primary brand color (buttons, links, accents) |
-| `BRAND_ACCENT_COLOR` | `#0047AB` | Secondary brand color |
-| `BRAND_FONT_DISPLAY` | *(Fraunces)* | Google Font family name for headings; omit for Fraunces |
+| `BRAND_PRIMARY_COLOR` | `#0070FF` | Primary brand color (buttons, links, accents) |
+| `BRAND_ACCENT_COLOR` | `#0061e0` | Secondary brand color |
+| `BRAND_POWERED_BY` | *(empty)* | Footer attribution on login; omit to hide |
+| `BRAND_FONT_DISPLAY` | *(Host Grotesk via layout)* | Google Font family name for headings |
 
 Runtime CSS variables (`--primary`, `--primary-soft`, `--accent`) are derived from the color env vars. See [docs/plans/design-system-overhaul/contracts.md](./docs/plans/design-system-overhaul/contracts.md).
 

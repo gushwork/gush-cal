@@ -111,7 +111,7 @@ function MeetingRows({
                   disabled={cancellingId === meeting.id}
                   onClick={() => onCancelRequest(meeting.id)}
                   aria-label={`Cancel ${meeting.subject}`}
-                  className="px-2 py-1 text-neutral-500 hover:bg-gw-red-100 hover:text-gw-red-700"
+                  className="px-2 py-1 text-neutral-500 hover:bg-status-error-100 hover:text-status-error-700"
                 >
                   {cancellingId === meeting.id ? "Cancelling…" : "Cancel"}
                 </Button>

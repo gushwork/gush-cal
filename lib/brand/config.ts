@@ -1,21 +1,19 @@
-import {
-  GUSHWORK_PRESET,
-  type BrandConfig,
-} from "@/lib/brand/gushwork-preset";
+import { DEFAULT_PRESET } from "@/lib/brand/default-preset";
+import type { BrandConfig } from "@/lib/brand/types";
 
 export type { BrandConfig };
 
 export function getBrandConfig(): BrandConfig {
   return {
-    appName: process.env.BRAND_APP_NAME?.trim() || GUSHWORK_PRESET.appName,
-    poweredBy: process.env.BRAND_POWERED_BY?.trim() || GUSHWORK_PRESET.poweredBy,
-    logoUrl: process.env.BRAND_LOGO_URL?.trim() || GUSHWORK_PRESET.logoUrl,
+    appName: process.env.BRAND_APP_NAME?.trim() || DEFAULT_PRESET.appName,
+    poweredBy: process.env.BRAND_POWERED_BY?.trim() || DEFAULT_PRESET.poweredBy,
+    logoUrl: process.env.BRAND_LOGO_URL?.trim() || DEFAULT_PRESET.logoUrl,
     faviconUrl:
-      process.env.BRAND_FAVICON_URL?.trim() || GUSHWORK_PRESET.faviconUrl,
+      process.env.BRAND_FAVICON_URL?.trim() || DEFAULT_PRESET.faviconUrl,
     primaryColor:
-      process.env.BRAND_PRIMARY_COLOR?.trim() || GUSHWORK_PRESET.primaryColor,
+      process.env.BRAND_PRIMARY_COLOR?.trim() || DEFAULT_PRESET.primaryColor,
     accentColor:
-      process.env.BRAND_ACCENT_COLOR?.trim() || GUSHWORK_PRESET.accentColor,
+      process.env.BRAND_ACCENT_COLOR?.trim() || DEFAULT_PRESET.accentColor,
     fontDisplay: process.env.BRAND_FONT_DISPLAY?.trim() || null,
   };
 }

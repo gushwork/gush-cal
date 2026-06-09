@@ -11,10 +11,10 @@ const variants = {
   default: "bg-primary-25 text-primary-500",
   count: "min-w-[1.25rem] bg-primary text-white",
   muted: "border border-neutral-100 bg-neutral-25 text-neutral-600",
-  success: "bg-gw-green-100 text-gw-green-700",
-  warning: "bg-gw-orange-100 text-gw-orange-700",
-  error: "bg-gw-red-100 text-gw-red-700",
-  info: "bg-gw-blue-100 text-gw-blue-700",
+  success: "bg-status-success-100 text-status-success-700",
+  warning: "bg-status-warning-100 text-status-warning-700",
+  error: "bg-status-error-100 text-status-error-700",
+  info: "bg-status-info-100 text-status-info-700",
 };
 
 const sizes = {

@@ -30,7 +30,7 @@ describe("SP-24 meetings table", () => {
 
   it("cancel uses destructive hover and descriptive aria-label", () => {
     const source = readFileSync(tablePath, "utf8");
-    expect(source).toContain("hover:text-gw-red-700");
+    expect(source).toContain("hover:text-status-error-700");
     expect(source).toContain("aria-label={`Cancel ${meeting.subject}`}");
   });
 

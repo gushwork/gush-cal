@@ -138,12 +138,14 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </p>
           </div>
 
-          <p
-            className="animate-fade-up text-caption text-neutral-500"
-            style={{ animationDelay: "240ms" }}
-          >
-            Powered by {brand.poweredBy}
-          </p>
+          {brand.poweredBy ? (
+            <p
+              className="animate-fade-up text-caption text-neutral-500"
+              style={{ animationDelay: "240ms" }}
+            >
+              Powered by {brand.poweredBy}
+            </p>
+          ) : null}
         </div>
       </div>
     </AppShell>

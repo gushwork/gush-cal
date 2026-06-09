@@ -91,7 +91,7 @@ export function AppShell({
         >
           Skip to main content
         </a>
-        <main id="main-content" className="gush-page-bg flex flex-1 flex-col">
+        <main id="main-content" className="page-bg flex flex-1 flex-col">
           {children}
         </main>
       </div>
@@ -116,7 +116,7 @@ export function AppShell({
             />
           </div>
         </header>
-        <main id="main-content" className="gush-page-bg flex-1">
+        <main id="main-content" className="page-bg flex-1">
           {children}
         </main>
       </div>
@@ -142,7 +142,7 @@ export function AppShell({
           )}
         </div>
       </AdminShellHeader>
-      <main id="main-content" className="gush-page-bg animate-page-in flex-1">
+      <main id="main-content" className="page-bg animate-page-in flex-1">
         {children}
       </main>
     </div>

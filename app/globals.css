@@ -49,18 +49,18 @@
   --colors-primary-500: #0070ff;
   --colors-primary-600: #0061e0;
 
-  --colors-gw-green-100: #d1fae5;
-  --colors-gw-green-500: #10b981;
-  --colors-gw-green-700: #047857;
-  --colors-gw-red-100: #fee2e2;
-  --colors-gw-red-500: #ef4444;
-  --colors-gw-red-700: #b91c1c;
-  --colors-gw-orange-100: #ffedd5;
-  --colors-gw-orange-700: #c2410c;
-  --colors-gw-yellow-100: #fef3c7;
-  --colors-gw-yellow-700: #b45309;
-  --colors-gw-blue-100: #dbeafe;
-  --colors-gw-blue-700: #1d4ed8;
+  --colors-status-success-100: #d1fae5;
+  --colors-status-success-500: #10b981;
+  --colors-status-success-700: #047857;
+  --colors-status-error-100: #fee2e2;
+  --colors-status-error-500: #ef4444;
+  --colors-status-error-700: #b91c1c;
+  --colors-status-warning-100: #ffedd5;
+  --colors-status-warning-700: #c2410c;
+  --colors-status-caution-100: #fef3c7;
+  --colors-status-caution-700: #b45309;
+  --colors-status-info-100: #dbeafe;
+  --colors-status-info-700: #1d4ed8;
 
   /* Legacy aliases — existing components */
   --paper: var(--background);
@@ -70,9 +70,9 @@
   --primary-soft: var(--colors-primary-25);
   --accent: var(--colors-primary-600);
   --accent-soft: var(--colors-primary-100);
-  --destructive-soft: var(--colors-gw-red-100);
-  --success-soft: var(--colors-gw-green-100);
-  --success-ink: var(--colors-gw-green-700);
+  --destructive-soft: var(--colors-status-error-100);
+  --success-soft: var(--colors-status-success-100);
+  --success-ink: var(--colors-status-success-700);
 
   --page-py: 2rem;
   --page-px: 1.25rem;
@@ -111,18 +111,18 @@
   --color-neutral-600: var(--colors-neutral-600);
   --color-neutral-800: var(--colors-neutral-800);
   --color-neutral-900: var(--colors-neutral-900);
-  --color-gw-green-100: var(--colors-gw-green-100);
-  --color-gw-green-500: var(--colors-gw-green-500);
-  --color-gw-green-700: var(--colors-gw-green-700);
-  --color-gw-red-100: var(--colors-gw-red-100);
-  --color-gw-red-500: var(--colors-gw-red-500);
-  --color-gw-red-700: var(--colors-gw-red-700);
-  --color-gw-orange-100: var(--colors-gw-orange-100);
-  --color-gw-orange-700: var(--colors-gw-orange-700);
-  --color-gw-yellow-100: var(--colors-gw-yellow-100);
-  --color-gw-yellow-700: var(--colors-gw-yellow-700);
-  --color-gw-blue-100: var(--colors-gw-blue-100);
-  --color-gw-blue-700: var(--colors-gw-blue-700);
+  --color-status-success-100: var(--colors-status-success-100);
+  --color-status-success-500: var(--colors-status-success-500);
+  --color-status-success-700: var(--colors-status-success-700);
+  --color-status-error-100: var(--colors-status-error-100);
+  --color-status-error-500: var(--colors-status-error-500);
+  --color-status-error-700: var(--colors-status-error-700);
+  --color-status-warning-100: var(--colors-status-warning-100);
+  --color-status-warning-700: var(--colors-status-warning-700);
+  --color-status-caution-100: var(--colors-status-caution-100);
+  --color-status-caution-700: var(--colors-status-caution-700);
+  --color-status-info-100: var(--colors-status-info-100);
+  --color-status-info-700: var(--colors-status-info-700);
   --color-border: var(--border);
   --color-ring: var(--ring);
   --color-muted: var(--muted);
@@ -414,11 +414,13 @@
     0 4px 16px rgb(38 42 46 / 0.04);
 }
 
-.gush-page-bg {
-  background-image: url("https://cdn.gushwork.ai/v2/gush-bg.webp");
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
+.page-bg {
+  background-color: var(--background);
+  background-image: linear-gradient(
+    180deg,
+    var(--colors-primary-25) 0%,
+    var(--background) 45%
+  );
 }
 
 .recharts-wrapper *:focus {

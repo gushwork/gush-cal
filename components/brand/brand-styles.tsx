@@ -1,5 +1,5 @@
 import { getBrandConfig } from "@/lib/brand/config";
-import { deriveSoftVariants } from "@/lib/brand/gushwork-preset";
+import { deriveSoftVariants } from "@/lib/brand/color-utils";
 
 export function BrandStyles() {
   const { primaryColor, accentColor } = getBrandConfig();

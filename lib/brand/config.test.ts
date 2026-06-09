@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { getBrandConfig } from "@/lib/brand/config";
-import { GUSHWORK_PRESET, deriveSoftVariants } from "@/lib/brand/gushwork-preset";
+import { deriveSoftVariants } from "@/lib/brand/color-utils";
+import { DEFAULT_PRESET } from "@/lib/brand/default-preset";
 
 const ENV_KEYS = [
   "BRAND_APP_NAME",
@@ -8,6 +9,7 @@ const ENV_KEYS = [
   "BRAND_FAVICON_URL",
   "BRAND_PRIMARY_COLOR",
   "BRAND_ACCENT_COLOR",
+  "BRAND_POWERED_BY",
   "BRAND_FONT_DISPLAY",
 ] as const;
 
@@ -18,8 +20,8 @@ afterEach(() => {
 });
 
 describe("getBrandConfig", () => {
-  it("returns Gushwork defaults when env is unset", () => {
-    expect(getBrandConfig()).toEqual(GUSHWORK_PRESET);
+  it("returns default preset when env is unset", () => {
+    expect(getBrandConfig()).toEqual(DEFAULT_PRESET);
   });
 
   it("reads env overrides", () => {
@@ -28,6 +30,7 @@ describe("getBrandConfig", () => {
     process.env.BRAND_FAVICON_URL = "/acme.ico";
     process.env.BRAND_PRIMARY_COLOR = "#FF0000";
     process.env.BRAND_ACCENT_COLOR = "#AA0000";
+    process.env.BRAND_POWERED_BY = "Acme Corp";
     process.env.BRAND_FONT_DISPLAY = "Inter";
 
     expect(getBrandConfig()).toEqual({
@@ -36,6 +39,7 @@ describe("getBrandConfig", () => {
       faviconUrl: "/acme.ico",
       primaryColor: "#FF0000",
       accentColor: "#AA0000",
+      poweredBy: "Acme Corp",
       fontDisplay: "Inter",
     });
   });

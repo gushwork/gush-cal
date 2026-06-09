@@ -147,6 +147,7 @@ Important invariant: Scheduler OAuth is identity only. Calendar API reads/writes
 - UI primitives: `components/ui/`.
 - Page/layout helpers: `components/layout/`.
 - Admin/public shell and brand: `components/brand/`, `lib/brand/`, `app/layout.tsx`, `app/(admin)/layout.tsx`, `app/book/layout.tsx`.
+- Brand defaults: `lib/brand/default-preset.ts` (runtime default via `getBrandConfig()`); optional `lib/brand/gushwork-preset.ts` for Gushwork white-label values.
 - Global tokens/styles: `app/globals.css`.
 - Toasts: `components/ui/toast.ts`, `components/ui/toaster.tsx`.
 
