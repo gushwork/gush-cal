@@ -74,8 +74,21 @@ export async function cancelMeeting(
     };
   }
 
+  await deps.email.cancelPendingEmailSteps(meetingId);
+  void deps.email.enqueueSequenceForMeeting(meetingId, "meeting.cancelled");
+
   await getDb().delete(meetings).where(eq(meetings.id, meetingId));
   clearSlotsCacheForCalendar(loaded.meeting.calendarId);
+
+  void deps.events.emit({
+    calendarId: loaded.meeting.calendarId,
+    eventType: "meeting.cancelled",
+    meetingId,
+    payload: { meetingId },
+  });
+  void deps.salesforce.syncFieldMap(loaded.meeting.calendarId, "cancel", {
+    meetingId,
+  });
 
   return { ok: true };
 }

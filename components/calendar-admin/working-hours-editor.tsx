@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui";
+import { Button, Checkbox } from "@/components/ui";
 import {
   getDayLabel,
   localeTimeToMinutes,
@@ -212,12 +212,10 @@ function DayRow({
     <div className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-start">
       <div className="flex w-full items-center gap-3 sm:w-28 sm:shrink-0">
         <label className="inline-flex items-center gap-2 text-sm font-medium text-ink">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={row.enabled}
             disabled={disabled}
             onChange={(e) => onToggle(e.target.checked)}
-            className="h-4 w-4 rounded border-border text-primary focus:ring-primary/20"
           />
           {getDayLabel(day)}
         </label>

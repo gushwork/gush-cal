@@ -1,0 +1,55 @@
+import { NextResponse } from "next/server";
+import { rescheduleMeeting } from "@/lib/booking/reschedule-meeting";
+import { createAppDeps } from "@/lib/deps";
+import { getDb } from "@/lib/db/client";
+import { loadCalendarBundleByCalendarId } from "@/lib/db/assemble-calendar-bundle";
+import { requireApiKeyAuth } from "@/lib/events/api-key-auth";
+import type { ConfirmBookingBody } from "@/lib/types";
+
+type RouteParams = {
+  params: Promise<{ calendarId: string; meetingId: string }>;
+};
+
+export async function POST(request: Request, { params }: RouteParams) {
+  const { calendarId, meetingId } = await params;
+
+  const auth = await requireApiKeyAuth(request, calendarId);
+  if (!auth.ok) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const bundle = await loadCalendarBundleByCalendarId(getDb(), calendarId);
+  if (!bundle) {
+    return NextResponse.json({ error: "Calendar not found" }, { status: 404 });
+  }
+
+  let body: Pick<
+    ConfirmBookingBody,
+    "startsAt" | "durationMinutes" | "viewerTimezone"
+  >;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const deps = createAppDeps();
+  const result = await rescheduleMeeting(deps, {
+    meetingId,
+    startsAt: body.startsAt,
+    durationMinutes: body.durationMinutes,
+    viewerTimezone: body.viewerTimezone,
+  });
+
+  if (!result.ok) {
+    const status =
+      result.code === "NOT_FOUND"
+        ? 404
+        : result.code === "GOOGLE_ERROR"
+          ? 502
+          : 409;
+    return NextResponse.json({ error: result.code, message: result.message }, { status });
+  }
+
+  return NextResponse.json({ meeting: result.meeting, manageUrl: result.manageUrl });
+}

@@ -20,6 +20,8 @@ export async function getAvailableSlotsForCalendar(
     from: params.rangeStart,
     to: params.rangeEnd,
     tz: params.viewerTimezone,
+    teamId: params.teamId ?? "",
+    memberId: params.memberId ?? "",
   });
 
   const cached = getCachedSlots(key);
@@ -34,6 +36,8 @@ export async function getAvailableSlotsForCalendar(
     rangeEnd: params.rangeEnd,
     viewerTimezone: params.viewerTimezone,
     bookingPolicy: cacheScope === "public" ? "guest" : "admin",
+    teamId: params.teamId,
+    memberId: params.memberId,
   });
 
   setCachedSlots(key, slots);

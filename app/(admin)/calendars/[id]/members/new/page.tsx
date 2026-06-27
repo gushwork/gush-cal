@@ -1,8 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { loadCalendarBundle } from "@/components/calendar-admin/load-calendar-bundle";
 import { MemberForm } from "@/components/calendar-admin/member-form";
-import { Breadcrumbs } from "@/components/layout/breadcrumbs";
-import { PageContainer } from "@/components/layout/page-container";
 import { Card, PageHeader } from "@/components/ui";
 import { getSchedulerId } from "@/lib/auth";
 import { calendarPageTitle, pageTitle } from "@/lib/brand/metadata";
@@ -40,14 +38,7 @@ export default async function NewMemberPage({ params }: PageProps) {
   }
 
   return (
-    <PageContainer variant="form-wide">
-      <Breadcrumbs
-        items={[
-          { label: "Calendars", href: "/calendars" },
-          { label: bundle.name, href: `/calendars/${id}` },
-          { label: "Add member" },
-        ]}
-      />
+    <div className="mx-auto max-w-[var(--content-form-wide)]">
       <PageHeader
         title="Add Member"
         subtitle="Invite someone to share availability on this calendar."
@@ -62,6 +53,6 @@ export default async function NewMemberPage({ params }: PageProps) {
           calendarDefaultWeek={bundle.defaultMaxPerWeek}
         />
       </Card>
-    </PageContainer>
+    </div>
   );
 }

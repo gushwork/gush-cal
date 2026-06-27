@@ -1,7 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { AvailabilityGrid } from "@/components/availability-grid";
 import { loadCalendarBundle } from "@/components/calendar-admin/load-calendar-bundle";
-import { PageContainer } from "@/components/layout/page-container";
 import { getSchedulerId } from "@/lib/auth";
 import { calendarPageTitle, pageTitle } from "@/lib/brand/metadata";
 import type { Metadata } from "next";
@@ -38,8 +37,8 @@ export default async function AvailabilityPage({ params }: PageProps) {
   }
 
   return (
-    <PageContainer variant="grid">
+    <div className="flex h-[calc(100dvh-14rem)] flex-col overflow-hidden">
       <AvailabilityGrid calendarId={id} bundle={bundle} />
-    </PageContainer>
+    </div>
   );
 }

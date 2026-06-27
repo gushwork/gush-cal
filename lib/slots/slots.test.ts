@@ -1,10 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CalendarBundle } from "@/lib/types";
 import type { DbMeetingCounter } from "@/lib/ports/meeting-counter";
 import { createGoogleCalendarStub } from "@/lib/stubs/google-calendar-stub";
 import { effectiveCaps } from "@/lib/slots/cap-limits";
 import { isSlotBusyForMember } from "@/lib/slots/eligibility";
 import { createSlotEnginePort } from "@/lib/slots";
+import { defaultSchedulingSettingsStub } from "@/lib/stubs/scheduling-settings-stub";
+import { pickAssignedMember } from "@/lib/slots/assignment-strategies";
 import { isWithinWorkingHours } from "@/lib/slots/working-hours";
 import { toUtcInstant } from "@/components/availability-grid/time-utils";
 import {
@@ -13,6 +15,14 @@ import {
   startOfLocalDay,
 } from "@/lib/datetime/local-day";
 import { getBookingWindow } from "@/lib/slots/time";
+
+vi.mock("@/lib/teams/teams", () => ({
+  getTeamMemberIds: vi.fn(),
+}));
+
+import { getTeamMemberIds } from "@/lib/teams/teams";
+
+const mockGetTeamMemberIds = vi.mocked(getTeamMemberIds);
 
 const weekdayHours = [
   { day: 1, start: 540, end: 1020 },
@@ -50,6 +60,7 @@ function makeBundle(overrides?: Partial<CalendarBundle>): CalendarBundle {
         workingHoursOverride: null,
         timezone: null,
         sortOrder: 1,
+        assignmentWeight: 100,
       },
       {
         id: "m-2",
@@ -61,6 +72,7 @@ function makeBundle(overrides?: Partial<CalendarBundle>): CalendarBundle {
         workingHoursOverride: null,
         timezone: null,
         sortOrder: 2,
+        assignmentWeight: 100,
       },
     ],
     ...overrides,
@@ -159,6 +171,134 @@ describe("isSlotBusyForMember", () => {
 });
 
 describe("createSlotEnginePort", () => {
+  beforeEach(() => {
+    mockGetTeamMemberIds.mockReset();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-01T08:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("teamId limits slots to team members only", async () => {
+    mockGetTeamMemberIds.mockResolvedValue(["m-1"]);
+
+    const google = createGoogleCalendarStub();
+    vi.spyOn(google, "queryFreeBusy").mockResolvedValue({
+      byEmail: {
+        "a@acme.com": {
+          status: "ok",
+          busy: [
+            {
+              start: "2026-06-08T09:00:00.000Z",
+              end: "2026-06-08T18:00:00.000Z",
+            },
+          ],
+        },
+        "b@acme.com": { status: "ok", busy: [] },
+      },
+    });
+
+    const engine = createSlotEnginePort({ google, db: makeDb({}) });
+    const bundle = makeBundle({ minNoticeHours: 0 });
+    const baseRequest = {
+      bundle,
+      durationMinutes: 30,
+      rangeStart: "2026-06-08T09:00:00.000Z",
+      rangeEnd: "2026-06-08T12:00:00.000Z",
+      viewerTimezone: "UTC",
+    };
+    const teamSlots = await engine.getAvailableSlots({
+      ...baseRequest,
+      teamId: "team-1",
+    });
+    const allSlots = await engine.getAvailableSlots(baseRequest);
+
+    expect(teamSlots.length).toBe(0);
+    expect(allSlots.length).toBeGreaterThan(0);
+  });
+
+  it("memberId assigns only that member when eligible", async () => {
+    const google = createGoogleCalendarStub();
+    const engine = createSlotEnginePort({
+      google,
+      db: makeDb({ "m-1": { daily: 0, weekly: 0 }, "m-2": { daily: 0, weekly: 5 } }),
+    });
+
+    const result = await engine.assignMember({
+      bundle: makeBundle(),
+      startsAt: "2026-06-01T10:00:00.000Z",
+      durationMinutes: 30,
+      viewerTimezone: "UTC",
+      scheduling: defaultSchedulingSettingsStub(),
+      memberId: "m-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        member: expect.objectContaining({ id: "m-1" }),
+      }),
+    );
+  });
+
+  it("memberId does not fall back when that member is ineligible", async () => {
+    const google = createGoogleCalendarStub();
+    vi.spyOn(google, "queryFreeBusy").mockResolvedValue({
+      byEmail: {
+        "a@acme.com": {
+          status: "ok",
+          busy: [
+            {
+              start: "2026-06-01T09:00:00.000Z",
+              end: "2026-06-01T18:00:00.000Z",
+            },
+          ],
+        },
+        "b@acme.com": { status: "ok", busy: [] },
+      },
+    });
+
+    const engine = createSlotEnginePort({ google, db: makeDb({}) });
+    const result = await engine.assignMember({
+      bundle: makeBundle(),
+      startsAt: "2026-06-01T10:00:00.000Z",
+      durationMinutes: 30,
+      viewerTimezone: "UTC",
+      scheduling: defaultSchedulingSettingsStub(),
+      memberId: "m-1",
+    });
+
+    expect(result).toEqual({ ok: false, code: "SLOT_UNAVAILABLE" });
+  });
+
+  it("teamId load-balances within the team subset", async () => {
+    mockGetTeamMemberIds.mockResolvedValue(["m-1", "m-2"]);
+
+    const google = createGoogleCalendarStub();
+    const engine = createSlotEnginePort({
+      google,
+      db: makeDb({ "m-1": { daily: 0, weekly: 5 }, "m-2": { daily: 0, weekly: 1 } }),
+    });
+
+    const result = await engine.assignMember({
+      bundle: makeBundle(),
+      startsAt: "2026-06-01T10:00:00.000Z",
+      durationMinutes: 30,
+      viewerTimezone: "UTC",
+      scheduling: defaultSchedulingSettingsStub(),
+      teamId: "team-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        member: expect.objectContaining({ id: "m-2" }),
+      }),
+    );
+  });
+
   it("excludes busy members from slots", async () => {
     const google = createGoogleCalendarStub();
     vi.spyOn(google, "queryFreeBusy").mockResolvedValue({
@@ -269,12 +409,84 @@ describe("createSlotEnginePort", () => {
       startsAt: "2026-06-01T10:00:00.000Z",
       durationMinutes: 30,
       viewerTimezone: "UTC",
+      scheduling: defaultSchedulingSettingsStub(),
     });
 
-    expect(result).toEqual({
-      ok: true,
-      member: expect.objectContaining({ id: "m-2" }),
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        member: expect.objectContaining({ id: "m-2" }),
+      }),
+    );
+  });
+
+  it("first_free picks lowest sortOrder among eligible", async () => {
+    const google = createGoogleCalendarStub();
+    const engine = createSlotEnginePort({
+      google,
+      db: makeDb({ "m-1": { daily: 0, weekly: 0 }, "m-2": { daily: 0, weekly: 0 } }),
     });
+
+    const result = await engine.assignMember({
+      bundle: makeBundle(),
+      startsAt: "2026-06-01T10:00:00.000Z",
+      durationMinutes: 30,
+      viewerTimezone: "UTC",
+      scheduling: {
+        ...defaultSchedulingSettingsStub(),
+        assignmentMode: "first_free",
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        member: expect.objectContaining({ id: "m-1" }),
+      }),
+    );
+  });
+
+  it("strict_round_robin advances cursor across picks", () => {
+    const eligible = makeBundle().members;
+    const first = pickAssignedMember({
+      mode: "strict_round_robin",
+      eligible,
+      meetingCounts: new Map(),
+      poolKey: "calendar:cal-1",
+      strictRotation: {},
+      weightedDeficits: {},
+    });
+    const second = pickAssignedMember({
+      mode: "strict_round_robin",
+      eligible,
+      meetingCounts: new Map(),
+      poolKey: "calendar:cal-1",
+      strictRotation: { "calendar:cal-1": first.id },
+      weightedDeficits: {},
+    });
+
+    expect(first.id).toBe("m-1");
+    expect(second.id).toBe("m-2");
+  });
+
+  it("random returns an eligible member", async () => {
+    const google = createGoogleCalendarStub();
+    const engine = createSlotEnginePort({ google, db: makeDb({}) });
+    const result = await engine.assignMember({
+      bundle: makeBundle(),
+      startsAt: "2026-06-01T10:00:00.000Z",
+      durationMinutes: 30,
+      viewerTimezone: "UTC",
+      scheduling: {
+        ...defaultSchedulingSettingsStub(),
+        assignmentMode: "random",
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(["m-1", "m-2"]).toContain(result.member.id);
+    }
   });
 
   it("returns SLOT_UNAVAILABLE when all members over cap", async () => {
@@ -292,6 +504,7 @@ describe("createSlotEnginePort", () => {
       startsAt: "2026-06-01T10:00:00.000Z",
       durationMinutes: 30,
       viewerTimezone: "UTC",
+      scheduling: defaultSchedulingSettingsStub(),
     });
 
     expect(result).toEqual({ ok: false, code: "SLOT_UNAVAILABLE" });
@@ -318,6 +531,7 @@ describe("createSlotEnginePort", () => {
           workingHoursOverride: tokyoHours,
           timezone: "Asia/Tokyo",
           sortOrder: 1,
+          assignmentWeight: 100,
         },
       ],
     });
@@ -339,12 +553,15 @@ describe("createSlotEnginePort", () => {
       startsAt,
       durationMinutes: 30,
       viewerTimezone: guestTz,
+      scheduling: defaultSchedulingSettingsStub(),
     });
 
-    expect(assignment).toEqual({
-      ok: true,
-      member: expect.objectContaining({ id: "m-1" }),
-    });
+    expect(assignment).toEqual(
+      expect.objectContaining({
+        ok: true,
+        member: expect.objectContaining({ id: "m-1" }),
+      }),
+    );
 
     const utcOnlyBundle = makeBundle({
       minNoticeHours: 0,

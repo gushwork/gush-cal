@@ -11,6 +11,19 @@ import { calendarMembers, calendars } from "@/lib/db/schema";
 import type { CreateMemberBody } from "@/lib/types/api";
 import { validateMemberHoursAndTimezone } from "@/lib/working-hours/validate";
 
+function validateAssignmentWeight(value: unknown): string | null {
+  if (value === undefined) {
+    return null;
+  }
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    return "Assignment weight must be an integer between 1 and 1000";
+  }
+  if (value < 1 || value > 1000) {
+    return "Assignment weight must be an integer between 1 and 1000";
+  }
+  return null;
+}
+
 type RouteParams = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, { params }: RouteParams) {
@@ -56,6 +69,11 @@ export async function POST(request: Request, { params }: RouteParams) {
     return jsonError(hoursTzError, 400);
   }
 
+  const weightError = validateAssignmentWeight(body.assignmentWeight);
+  if (weightError) {
+    return jsonError(weightError, 400);
+  }
+
   const workingHoursOverride =
     body.workingHoursOverride != null && body.workingHoursOverride.length > 0
       ? body.workingHoursOverride
@@ -77,6 +95,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       maxPerWeekOverride: body.maxPerWeekOverride ?? null,
       workingHoursOverride,
       timezone,
+      assignmentWeight: body.assignmentWeight ?? 100,
       sortOrder: (maxOrder?.value ?? 0) + 1,
     })
     .returning();

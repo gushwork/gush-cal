@@ -12,7 +12,10 @@ export default auth((req: AuthedRequest) => {
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/health") ||
     pathname.startsWith("/api/book") ||
-    pathname.startsWith("/book");
+    pathname.startsWith("/api/manage") ||
+    pathname.startsWith("/api/v1") ||
+    pathname.startsWith("/book") ||
+    pathname.startsWith("/manage");
 
   if (!req.auth && !isPublic) {
     const loginUrl = new URL("/login", req.nextUrl.origin);

@@ -13,7 +13,11 @@ export default async function AdminLayout({
   }
 
   return (
-    <AppShell variant="admin" userEmail={session.user?.email ?? undefined}>
+    <AppShell
+      variant="admin"
+      userEmail={session.user?.email ?? undefined}
+      userName={session.user?.name ?? undefined}
+    >
       {children}
     </AppShell>
   );

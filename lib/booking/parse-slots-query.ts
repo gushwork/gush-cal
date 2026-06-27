@@ -5,6 +5,8 @@ export type SlotsQueryParams = {
   rangeStart: UtcInstant;
   rangeEnd: UtcInstant;
   viewerTimezone: IanaTimezone;
+  teamId?: string;
+  memberId?: string;
 };
 
 export function parseSlotsQuery(
@@ -44,6 +46,8 @@ export function parseSlotsQuery(
       rangeStart: from,
       rangeEnd: to,
       viewerTimezone: tz,
+      teamId: searchParams.get("teamId") ?? undefined,
+      memberId: searchParams.get("memberId") ?? undefined,
     },
   };
 }

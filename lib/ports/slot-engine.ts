@@ -5,6 +5,7 @@ import type {
   Slot,
   UtcInstant,
 } from "@/lib/types";
+import type { CalendarSchedulingSettings } from "@/lib/types/platform";
 
 export type SlotBookingPolicy = "guest" | "admin" | "none";
 
@@ -20,6 +21,8 @@ export type GetSlotsRequest = {
    * - none: past cutoff only (tests)
    */
   bookingPolicy?: SlotBookingPolicy;
+  teamId?: string;
+  memberId?: string;
 };
 
 export type AssignMemberRequest = {
@@ -27,10 +30,13 @@ export type AssignMemberRequest = {
   startsAt: UtcInstant;
   durationMinutes: number;
   viewerTimezone: IanaTimezone;
+  teamId?: string;
+  memberId?: string;
+  scheduling: CalendarSchedulingSettings;
 };
 
 export type AssignMemberResult =
-  | { ok: true; member: CalendarMember }
+  | { ok: true; member: CalendarMember; eligibleMembers: CalendarMember[] }
   | { ok: false; code: "SLOT_UNAVAILABLE" };
 
 export interface SlotEnginePort {

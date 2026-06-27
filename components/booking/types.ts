@@ -16,5 +16,6 @@ export type BookingFlowProps = {
   confirmApiPath: string;
   isPublic?: boolean;
   showPanelistCount?: boolean;
+  calendarSlug?: string;
   onConfirmed?: (meeting: import("@/lib/types").PublicMeeting) => void;
 };

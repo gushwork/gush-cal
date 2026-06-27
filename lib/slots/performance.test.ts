@@ -63,6 +63,9 @@ describe("SP-22 availability performance", () => {
   });
 
   it("calls queryFreeBusy once per range and uses cache on repeat", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-08T12:00:00.000Z"));
+
     const google = createGoogleCalendarStub();
     const querySpy = vi.spyOn(google, "queryFreeBusy");
     const deps = { google, db: makeDb() };
@@ -80,6 +83,7 @@ describe("SP-22 availability performance", () => {
     await computeAvailableSlots(deps, req);
 
     expect(querySpy).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
   });
 
   it("fetchBookableSlotsBatch invokes onDayLoaded per day in range", async () => {

@@ -2,7 +2,6 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { MeetingsList } from "@/components/booking/meetings-list";
 import { loadCalendarBundle } from "@/components/calendar-admin/load-calendar-bundle";
-import { PageContainer } from "@/components/layout/page-container";
 import { Button, PageHeader } from "@/components/ui";
 import { getSchedulerId } from "@/lib/auth";
 import { listMeetingsForCalendar } from "@/lib/booking/list-meetings";
@@ -48,12 +47,10 @@ export default async function AdminMeetingsPage({ params }: PageProps) {
   const hasMeetings = initialMeetings.length > 0;
 
   return (
-    <PageContainer variant="default">
+    <>
       <PageHeader
         title="Meetings"
         subtitle="Scheduled interviews and calls for this calendar."
-        backHref={`/calendars/${id}`}
-        backLabel={`Back to ${bundle.name}`}
         className="mb-8 [&>div:nth-child(2)]:flex-col [&>div:nth-child(2)]:items-stretch sm:[&>div:nth-child(2)]:flex-row sm:[&>div:nth-child(2)]:items-start"
         actions={
           hasMeetings ? (
@@ -69,6 +66,6 @@ export default async function AdminMeetingsPage({ params }: PageProps) {
         memberNames={memberNames}
         initialMeetings={initialMeetings}
       />
-    </PageContainer>
+    </>
   );
 }

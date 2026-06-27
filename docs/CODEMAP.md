@@ -12,7 +12,7 @@ Agent-facing guide to find code quickly. Read `CONTEXT.md` first for domain lang
 | Calendar + Members + Scheduler bundle | `lib/db/assemble-calendar-bundle.ts`, `components/calendar-admin/load-calendar-bundle.ts` |
 | Migrations | `drizzle/*.sql`, `drizzle/meta/*.json` |
 | Public booking by slug | `app/book/[slug]/page.tsx`, `app/api/book/[slug]/route.ts` |
-| Admin Calendar pages | `app/(admin)/calendars/**/page.tsx` |
+| Admin Calendar pages | `app/(admin)/calendars/**/page.tsx`, `app/(admin)/calendars/[id]/layout.tsx` |
 | Calendar CRUD API | `app/api/calendars/route.ts`, `app/api/calendars/[id]/route.ts` |
 | Member CRUD API | `app/api/calendars/[id]/members/**/route.ts` |
 | Slot generation and assignment | `lib/slots/` |
@@ -47,7 +47,16 @@ Admin pages live under `app/(admin)/`:
 
 - `app/(admin)/calendars/page.tsx`: Calendar list.
 - `app/(admin)/calendars/new/page.tsx`: create Calendar.
-- `app/(admin)/calendars/[id]/page.tsx`: Calendar detail/settings.
+- `app/(admin)/calendars/[id]/layout.tsx`: Shared calendar shell (header, sidebar, breadcrumbs).
+- `app/(admin)/calendars/[id]/page.tsx`: Calendar overview stats.
+- `app/(admin)/calendars/[id]/members/page.tsx`: Member list.
+- `app/(admin)/calendars/[id]/settings/page.tsx`: Public link slug and calendar settings.
+- `app/(admin)/calendars/[id]/teams/page.tsx`: Teams configuration.
+- `app/(admin)/calendars/[id]/links/page.tsx`: Booking links.
+- `app/(admin)/calendars/[id]/policies/page.tsx`: Routing and policy settings.
+- `app/(admin)/calendars/[id]/integrations/page.tsx`: Salesforce and webhooks.
+- `app/(admin)/calendars/[id]/api-keys/page.tsx`: Calendar API keys with usage metadata.
+- `app/(admin)/calendars/[id]/sequences/page.tsx`: Email sequences.
 - `app/(admin)/calendars/[id]/availability/page.tsx`: availability grid.
 - `app/(admin)/calendars/[id]/book/page.tsx`: Scheduler booking flow.
 - `app/(admin)/calendars/[id]/meetings/page.tsx`: Meeting list.
@@ -62,6 +71,13 @@ API routes:
 
 - `app/api/calendars/route.ts`: list/create Calendars.
 - `app/api/calendars/[id]/route.ts`: get/update/delete Calendar.
+- `app/api/calendars/[id]/settings/route.ts`: calendar_settings jsonb GET/PATCH.
+- `app/api/calendars/[id]/teams/**/route.ts`: Teams CRUD; `teams/[teamId]/members` GET lists member IDs, PUT replaces membership (`replaceTeamMembers`).
+- `app/api/calendars/[id]/links/**/route.ts`: Booking links CRUD.
+- `app/api/calendars/[id]/salesforce/**/route.ts`: Salesforce connection and field maps.
+- `app/api/calendars/[id]/webhooks/**/route.ts`: Webhook endpoints.
+- `app/api/calendars/[id]/keys/**/route.ts`: Calendar API keys (POST list/create; PATCH revoke; DELETE remove).
+- `app/api/calendars/[id]/sequences/**/route.ts`: Email sequences and steps.
 - `app/api/calendars/[id]/members/**/route.ts`: Member CRUD.
 - `app/api/calendars/[id]/slots/route.ts`: Scheduler/admin slots.
 - `app/api/calendars/[id]/availability/route.ts`: FreeBusy member columns.
@@ -77,10 +93,11 @@ API routes:
 
 ### Calendar Admin
 
-- Forms/components: `components/calendar-admin/`.
+- Forms/components: `components/calendar-admin/` (including `calendar-sidebar.tsx`, `slug-editor.tsx`, `admin-panel-skeleton.tsx`, `teams/`, `links/`, `policies/`, `integrations/`, `sequences/`).
 - Validation: `components/calendar-admin/validation.ts`, `lib/working-hours/validate.ts`, `lib/calendar/validate-min-notice-hours.ts`.
 - Loading a Calendar bundle: `components/calendar-admin/load-calendar-bundle.ts` -> `lib/db/assemble-calendar-bundle.ts`.
-- Slugs: `lib/db/slug.ts`.
+- Slugs: `lib/db/slug.ts`, `components/calendar-admin/slug-editor.tsx`, `components/calendar-admin/public-link-editor.tsx`. Team slug updates sync to `booking_links` in `lib/teams/teams.ts`; team link slug updates sync to `teams` in `lib/booking-links/links.ts`.
+- Email sequences: `lib/email/sequences.ts` (`timing_anchor` on steps: `after_booking`, `before_meeting`, `after_meeting`). Worker: `scripts/run-outbox-worker.ts` calls `processDueEmailSteps`.
 
 ### Slot Engine
 

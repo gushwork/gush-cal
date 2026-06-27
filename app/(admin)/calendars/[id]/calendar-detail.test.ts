@@ -3,16 +3,20 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 describe("SP-11 calendar detail overview", () => {
-  it("uses PageHeader, tabs nav, and overview shell", () => {
-    const source = readFileSync(
+  it("uses layout shell with sidebar and overview stats", () => {
+    const layout = readFileSync(
+      join(process.cwd(), "app/(admin)/calendars/[id]/layout.tsx"),
+      "utf8",
+    );
+    const page = readFileSync(
       join(process.cwd(), "app/(admin)/calendars/[id]/page.tsx"),
       "utf8",
     );
-    expect(source).toContain("PageHeader");
-    expect(source).toContain("CalendarTabsNav");
-    expect(source).toContain("CopyLinkButton");
-    expect(source).not.toContain("sm:text-3xl");
-    expect(source).toContain('tab === "overview"');
-    expect(source).toContain("calendarId={id}");
+    expect(layout).toContain("CalendarSidebar");
+    expect(layout).toContain("PageHeader");
+    expect(layout).toContain("CopyLinkButton");
+    expect(page).toContain("CalendarStats");
+    expect(page).toContain("calendarId={id}");
+    expect(page).not.toContain("CalendarTabsNav");
   });
 });

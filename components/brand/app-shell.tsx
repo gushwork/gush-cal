@@ -31,6 +31,7 @@ export type AppShellProps = {
   variant: "admin" | "public" | "auth-minimal";
   children: React.ReactNode;
   userEmail?: string;
+  userName?: string;
   publicLogoHref?: string | null;
 };
 
@@ -95,6 +96,7 @@ export function AppShell({
   variant,
   children,
   userEmail,
+  userName,
   publicLogoHref = null,
 }: AppShellProps) {
   if (variant === "auth-minimal") {
@@ -162,7 +164,11 @@ export function AppShell({
             <CalendarsNavLink />
           </nav>
           {userEmail && (
-            <UserMenu email={userEmail} signOutAction={signOutAction} />
+            <UserMenu
+              email={userEmail}
+              name={userName}
+              signOutAction={signOutAction}
+            />
           )}
         </div>
       </AdminShellHeader>

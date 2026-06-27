@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { createAppDeps, resetAppDepsForTests } from "@/lib/deps";
 import { createGoogleCalendarStub } from "@/lib/stubs/google-calendar-stub";
 import { createSlotEngineStub } from "@/lib/stubs/slot-engine-stub";
+import { defaultSchedulingSettingsStub } from "@/lib/stubs/scheduling-settings-stub";
 
 describe("createAppDeps", () => {
   beforeEach(() => {
@@ -72,6 +73,7 @@ describe("createAppDeps", () => {
             maxPerWeekOverride: null,
             workingHoursOverride: null,
             sortOrder: 2,
+            assignmentWeight: 100,
           },
           {
             id: "m-1",
@@ -82,17 +84,21 @@ describe("createAppDeps", () => {
             maxPerWeekOverride: null,
             workingHoursOverride: null,
             sortOrder: 1,
+            assignmentWeight: 100,
           },
         ],
       },
       startsAt: "2026-06-03T14:00:00.000Z",
       durationMinutes: 30,
       viewerTimezone: "UTC",
+      scheduling: defaultSchedulingSettingsStub(),
     });
 
-    expect(result).toEqual({
-      ok: true,
-      member: expect.objectContaining({ id: "m-1", email: "a@acme.com" }),
-    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        member: expect.objectContaining({ id: "m-1", email: "a@acme.com" }),
+      }),
+    );
   });
 });

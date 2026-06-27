@@ -34,7 +34,7 @@ export function createSlotEngineStub(): SlotEnginePort {
         return { ok: false, code: "SLOT_UNAVAILABLE" };
       }
 
-      return { ok: true, member };
+      return { ok: true, member, eligibleMembers: req.bundle.members };
     },
   };
 }

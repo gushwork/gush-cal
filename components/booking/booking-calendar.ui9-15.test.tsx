@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, afterEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   BookingCalendar,
@@ -110,7 +110,14 @@ describe("SP-15 BookingCalendar", () => {
 });
 
 describe("SP-15 BookingDatePanel", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("shows info banner when today has zero slots", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-04T12:00:00.000Z"));
+
     const html = renderToStaticMarkup(
       <BookingDatePanel
         visibleMonth={{ year: 2026, month: 6 }}

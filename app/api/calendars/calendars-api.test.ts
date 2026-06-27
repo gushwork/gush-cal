@@ -55,6 +55,7 @@ const memberRow = {
   workingHoursOverride: null,
   timezone: null,
   sortOrder: 1,
+  assignmentWeight: 100,
 };
 
 function jsonRequest(body: unknown, method = "POST") {
@@ -392,6 +393,36 @@ describe("POST /api/calendars/:id/members", () => {
     expect(data.error).toMatch(/must be empty/);
   });
 
+  it("creates member with assignment weight", async () => {
+    const db = createDbMock({
+      selectResults: [[calendarRow], [{ value: 0 }]],
+      insertReturning: [{ ...memberRow, assignmentWeight: 250 }],
+    });
+
+    const res = await createMember(
+      jsonRequest({
+        email: "member@acme.com",
+        assignmentWeight: 250,
+      }),
+      { params: Promise.resolve({ id: "cal-1" }) },
+    );
+    expect(res.status).toBe(201);
+    expect(db.capturedInsertValues).toMatchObject({ assignmentWeight: 250 });
+  });
+
+  it("returns 400 for invalid assignment weight", async () => {
+    createDbMock({ selectResults: [[calendarRow], [{ value: 0 }]] });
+
+    const res = await createMember(
+      jsonRequest({
+        email: "member@acme.com",
+        assignmentWeight: 0,
+      }),
+      { params: Promise.resolve({ id: "cal-1" }) },
+    );
+    expect(res.status).toBe(400);
+  });
+
   it("clears timezone when override is empty", async () => {
     const db = createDbMock({
       selectResults: [[calendarRow], [{ value: 0 }]],
@@ -478,5 +509,19 @@ describe("PATCH /api/calendars/:id/members/:memberId", () => {
     expect(res.status).toBe(400);
     const data = (await res.json()) as { error: string };
     expect(data.error).toMatch(/Invalid time range/);
+  });
+
+  it("updates assignment weight", async () => {
+    const db = createDbMock({
+      selectResults: [[calendarRow]],
+      updateReturning: [{ ...memberRow, assignmentWeight: 300 }],
+    });
+
+    const res = await updateMember(
+      jsonRequest({ assignmentWeight: 300 }, "PATCH"),
+      { params: Promise.resolve({ id: "cal-1", memberId: "mem-1" }) },
+    );
+    expect(res.status).toBe(200);
+    expect(db.capturedUpdateSet).toMatchObject({ assignmentWeight: 300 });
   });
 });

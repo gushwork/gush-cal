@@ -2,8 +2,6 @@ import { notFound, redirect } from "next/navigation";
 import { DeleteMemberButton } from "@/components/calendar-admin/delete-member-button";
 import { loadCalendarBundle } from "@/components/calendar-admin/load-calendar-bundle";
 import { MemberForm } from "@/components/calendar-admin/member-form";
-import { Breadcrumbs } from "@/components/layout/breadcrumbs";
-import { PageContainer } from "@/components/layout/page-container";
 import { Card, PageHeader } from "@/components/ui";
 import { getSchedulerId } from "@/lib/auth";
 import { pageTitle } from "@/lib/brand/metadata";
@@ -52,14 +50,7 @@ export default async function EditMemberPage({ params }: PageProps) {
   }
 
   return (
-    <PageContainer variant="form-wide">
-      <Breadcrumbs
-        items={[
-          { label: "Calendars", href: "/calendars" },
-          { label: bundle.name, href: `/calendars/${id}?tab=members` },
-          { label: member.displayName ?? member.email },
-        ]}
-      />
+    <div className="mx-auto max-w-[var(--content-form-wide)]">
       <PageHeader
         title="Edit Member"
         subtitle={member.email}
@@ -83,6 +74,6 @@ export default async function EditMemberPage({ params }: PageProps) {
           calendarDefaultWeek={bundle.defaultMaxPerWeek}
         />
       </Card>
-    </PageContainer>
+    </div>
   );
 }

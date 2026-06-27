@@ -51,6 +51,7 @@ export function toCalendarMember(row: CalendarMemberRow): CalendarMember {
     workingHoursOverride: row.workingHoursOverride as WorkingHours | null,
     timezone: row.timezone,
     sortOrder: row.sortOrder,
+    assignmentWeight: row.assignmentWeight,
   };
 }
 
@@ -68,6 +69,9 @@ export function toMeeting(row: MeetingRow): Meeting {
     meetLink: row.meetLink,
     bookedBy: row.bookedBy,
     guestEmail: row.guestEmail,
+    teamId: row.teamId,
+    bookingLinkId: row.bookingLinkId,
+    cancelledAt: (row.cancelledAt as UtcInstant | null) ?? null,
     createdAt: row.createdAt as UtcInstant,
   };
 }

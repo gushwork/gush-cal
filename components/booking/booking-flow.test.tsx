@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
+  usePathname: () => "/book/test-slug",
 }));
 import { renderToStaticMarkup } from "react-dom/server";
 import { BookingFlow } from "./booking-flow";

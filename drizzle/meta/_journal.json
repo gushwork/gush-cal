@@ -29,6 +29,27 @@
       "when": 1780511205248,
       "tag": "0003_abnormal_reavers",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1780521000000,
+      "tag": "0005_email_step_timing",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1780607400000,
+      "tag": "0006_api_key_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1780693800000,
+      "tag": "0007_member_assignment_weight",
+      "breakpoints": true
     }
   ]
 }

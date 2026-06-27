@@ -51,6 +51,7 @@ export type CalendarMember = {
   workingHoursOverride: WorkingHours | null;
   timezone: IanaTimezone | null;
   sortOrder: number;
+  assignmentWeight: number;
 };
 
 export type BookedBy = "scheduler" | "guest";
@@ -68,6 +69,9 @@ export type Meeting = {
   meetLink: string | null;
   bookedBy: BookedBy;
   guestEmail: string | null;
+  teamId: string | null;
+  bookingLinkId: string | null;
+  cancelledAt: UtcInstant | null;
   createdAt: UtcInstant;
 };
 
@@ -108,3 +112,15 @@ export type {
   PublicCalendar,
   PublicMeeting,
 } from "./api";
+
+export type {
+  BookingUrlContext,
+  BookingTarget,
+  BookingTargetMode,
+  CalendarSettings,
+  Team,
+  BookingLink,
+  AppEventType,
+} from "./platform";
+
+export { defaultCalendarSettings } from "./platform";

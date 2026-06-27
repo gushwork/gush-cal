@@ -88,12 +88,15 @@ describe("buildCalendarSavePayload", () => {
 });
 
 describe("CalendarForm", () => {
-  it("renders timezone and working hours in create mode", () => {
+  it("renders standard settings and collapsed advanced section in create mode", () => {
     const html = renderToStaticMarkup(<CalendarForm mode="create" />);
 
+    expect(html).toContain("Standard settings");
+    expect(html).toContain("Advanced settings");
     expect(html).toContain("Calendar timezone");
-    expect(html).toContain("Timezone and working hours");
     expect(html).toContain("Working hours editor (5 blocks)");
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).not.toContain("Booking window (days)");
   });
 
   it("renders saved timezone in edit mode", () => {
@@ -103,7 +106,7 @@ describe("CalendarForm", () => {
 
     expect(html).toContain("Europe/London");
     expect(html).toContain("Availability windows are interpreted in Europe/London");
-    expect(html).toContain("text-heading");
+    expect(html).toContain("Standard settings");
   });
 });
 
@@ -114,6 +117,7 @@ describe("SP-13 calendar form", () => {
       "utf8",
     );
     expect(source).toContain("FormSection");
+    expect(source).toContain("AdvancedSettingsSection");
     expect(source).toContain("toast(");
     expect(source).toContain("AlertBanner");
   });

@@ -1,5 +1,6 @@
 "use client";
 
+import { AdvancedSettingsSection } from "@/components/calendar-admin/advanced-settings-section";
 import {
   AlertBanner,
   Button,
@@ -32,7 +33,7 @@ function FormSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-4 border-t border-border pt-6 first:border-t-0 first:pt-0">
+    <section className="space-y-4">
       <div>
         <h3 className="text-heading font-semibold text-ink">{title}</h3>
         {description ? (
@@ -146,7 +147,7 @@ export function CalendarForm(props: CalendarFormProps) {
     <form onSubmit={handleSubmit} className="space-y-6">
       {error ? <AlertBanner variant="error">{error}</AlertBanner> : null}
 
-      <FormSection title="General">
+      <FormSection title="Standard settings">
         <Label className="space-y-1.5">
           Name
           <Input
@@ -155,12 +156,45 @@ export function CalendarForm(props: CalendarFormProps) {
             onChange={(e) => setName(e.target.value)}
           />
         </Label>
+
+        <div className="space-y-1.5">
+          <p className="text-sm font-medium text-ink">Durations</p>
+          <p className="text-sm text-ink-muted">
+            Select one or more meeting lengths invitees can book.
+          </p>
+          <DurationChipGroup
+            values={[...ALLOWED_DURATIONS]}
+            selected={durations}
+            onChange={(selected) => {
+              if (Array.isArray(selected)) {
+                setDurations([...selected].sort((a, b) => a - b));
+              }
+            }}
+            mode="multi"
+          />
+        </div>
+
+        <TimezoneSelect
+          value={timezone}
+          onChange={setTimezone}
+          label="Calendar timezone"
+          disabled={saving}
+        />
+
+        <div className="space-y-1.5">
+          <p className="text-sm text-ink-muted">
+            Availability windows are interpreted in {timezone}. Per-member
+            overrides can be set on the member edit page.
+          </p>
+          <WorkingHoursEditor
+            value={defaultWorkingHours}
+            onChange={setDefaultWorkingHours}
+            disabled={saving}
+          />
+        </div>
       </FormSection>
 
-      <FormSection
-        title="Booking rules"
-        description="Control how far ahead invitees can schedule and minimum notice."
-      >
+      <AdvancedSettingsSection description="Booking window, notice period, and meeting caps.">
         <Label className="block max-w-xs space-y-1.5">
           Booking window (days)
           <Input
@@ -189,9 +223,7 @@ export function CalendarForm(props: CalendarFormProps) {
             Earliest bookable slot must be at least this many hours away.
           </span>
         </Label>
-      </FormSection>
 
-      <FormSection title="Meeting limits">
         <div className="grid grid-cols-2 gap-4">
           <Label className="space-y-1.5">
             Max meetings / day
@@ -212,40 +244,7 @@ export function CalendarForm(props: CalendarFormProps) {
             />
           </Label>
         </div>
-      </FormSection>
-
-      <FormSection
-        title="Durations"
-        description="Select one or more meeting lengths invitees can book."
-      >
-        <DurationChipGroup
-          values={[...ALLOWED_DURATIONS]}
-          selected={durations}
-          onChange={(selected) => {
-            if (Array.isArray(selected)) {
-              setDurations([...selected].sort((a, b) => a - b));
-            }
-          }}
-          mode="multi"
-        />
-      </FormSection>
-
-      <FormSection
-        title="Timezone and working hours"
-        description={`Availability windows are interpreted in ${timezone}. Per-member overrides can be set on the member edit page.`}
-      >
-        <TimezoneSelect
-          value={timezone}
-          onChange={setTimezone}
-          label="Calendar timezone"
-          disabled={saving}
-        />
-        <WorkingHoursEditor
-          value={defaultWorkingHours}
-          onChange={setDefaultWorkingHours}
-          disabled={saving}
-        />
-      </FormSection>
+      </AdvancedSettingsSection>
 
       <Button type="submit" loading={saving}>
         {isEdit ? "Save Changes" : "Create Calendar"}

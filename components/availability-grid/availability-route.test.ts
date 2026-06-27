@@ -20,6 +20,12 @@ vi.mock("@/lib/deps", () => ({
     google: { queryFreeBusy },
     slots: {},
     db: {},
+    routing: { resolveBookingTarget: vi.fn() },
+    salesforce: { lookupLeadOwner: vi.fn(), syncFieldMap: vi.fn() },
+    duplicateGuard: { check: vi.fn() },
+    events: { emit: vi.fn(), scheduleRelativeTriggers: vi.fn() },
+    manageToken: { createForMeeting: vi.fn(), validate: vi.fn(), revokeForMeeting: vi.fn() },
+    email: { enqueueSequenceForMeeting: vi.fn(), renderManageUrl: vi.fn() },
   }),
 }));
 

@@ -43,6 +43,7 @@ const bundle: CalendarBundle = {
       workingHoursOverride: null,
       timezone: null,
       sortOrder: index,
+      assignmentWeight: 100,
     }),
   ),
 };

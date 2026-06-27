@@ -15,7 +15,17 @@ vi.mock("@/components/calendar-admin/require-scheduler", () => ({
 }));
 
 vi.mock("@/lib/deps", () => ({
-  createAppDeps: () => ({ google: {}, slots: {}, db: {} }),
+  createAppDeps: () => ({
+    google: {},
+    slots: {},
+    db: {},
+    routing: { resolveBookingTarget: vi.fn() },
+    salesforce: { lookupLeadOwner: vi.fn(), syncFieldMap: vi.fn() },
+    duplicateGuard: { check: vi.fn() },
+    events: { emit: vi.fn(), scheduleRelativeTriggers: vi.fn() },
+    manageToken: { createForMeeting: vi.fn(), validate: vi.fn(), revokeForMeeting: vi.fn() },
+    email: { enqueueSequenceForMeeting: vi.fn(), renderManageUrl: vi.fn() },
+  }),
 }));
 
 describe("DELETE /api/meetings/:id", () => {

@@ -31,6 +31,7 @@ vi.mock("@/components/calendar-admin/timezone-select", () => ({
 import {
   buildMemberSavePayload,
   initialUseCalendarDefaultHours,
+  memberAdvancedDefaultOpen,
   MemberForm,
   memberHasHoursOverride,
 } from "./member-form";
@@ -45,6 +46,7 @@ const sampleMember: CalendarMember = {
   workingHoursOverride: [{ day: 2, start: 600, end: 900 }],
   timezone: "America/Denver",
   sortOrder: 0,
+  assignmentWeight: 100,
 };
 
 const formProps = {
@@ -108,22 +110,48 @@ describe("buildMemberSavePayload", () => {
   });
 });
 
+describe("memberAdvancedDefaultOpen", () => {
+  it("returns false for create and default member", () => {
+    expect(memberAdvancedDefaultOpen(null)).toBe(false);
+    expect(
+      memberAdvancedDefaultOpen({
+        ...sampleMember,
+        workingHoursOverride: null,
+        timezone: null,
+      }),
+    ).toBe(false);
+  });
+
+  it("returns true when advanced fields are set", () => {
+    expect(memberAdvancedDefaultOpen(sampleMember)).toBe(true);
+    expect(
+      memberAdvancedDefaultOpen({ ...sampleMember, assignmentWeight: 250 }),
+    ).toBe(true);
+  });
+});
+
 describe("MemberForm", () => {
-  it("renders default-hours toggle on create", () => {
+  it("renders standard fields and collapsed advanced section on create", () => {
     const html = renderToStaticMarkup(
       <MemberForm mode="create" {...formProps} />,
     );
 
-    expect(html).toContain("Use calendar default hours");
+    expect(html).toContain("Standard settings");
+    expect(html).toContain("Advanced settings");
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).not.toContain("Use calendar default hours");
     expect(html).not.toContain("Hours interpreted in member timezone");
     expect(html).not.toContain("Working hours editor");
   });
 
-  it("renders custom hours section when member has override", () => {
+  it("opens advanced section when member has overrides on edit", () => {
+    expect(memberAdvancedDefaultOpen(sampleMember)).toBe(true);
+
     const html = renderToStaticMarkup(
       <MemberForm mode="edit" member={sampleMember} {...formProps} />,
     );
 
+    expect(html).toContain('aria-expanded="true"');
     expect(html).toContain("Hours interpreted in member timezone");
     expect(html).toContain("Member timezone");
     expect(html).toContain("America/Denver");

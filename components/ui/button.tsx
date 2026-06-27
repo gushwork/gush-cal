@@ -13,6 +13,7 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
+  loadingLabel?: string;
   asChild?: boolean;
 };
 
@@ -38,6 +39,7 @@ export function Button({
   variant = "primary",
   size = "md",
   loading = false,
+  loadingLabel,
   asChild = false,
   className,
   disabled,
@@ -58,7 +60,7 @@ export function Button({
       )}
       {...props}
     >
-      {loading ? "Loading…" : children}
+      {loading ? (loadingLabel ?? "Loading…") : children}
     </Comp>
   );
 }

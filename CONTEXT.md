@@ -15,8 +15,15 @@ Avoid: Preset, pool, team.
 **Member**: panel interviewer listed on a Calendar. Availability is pooled for scheduling. Members can have cap overrides, working-hour overrides, and a timezone for custom hours.
 Avoid: Teammate, participant, panelist in code.
 
+**Team**: named subset of Members on a Calendar; round robin runs within a Team.
+Avoid: sub-pool, group in user-facing copy (use Team).
+
+**BookingLink**: published URL target for team pool, single Member, or default Calendar entry.
+
 **Meeting**: concrete scheduled occurrence with assigned Member, time, duration, invitees, subject/body, Google event id, Meet link, and booked-by source.
 Avoid: Booking, appointment, session in persisted/domain code.
+
+Show/no-show attendance and showup-weighted round robin are **out of scope** for the platform expansion.
 
 ## Time And Availability Invariants
 

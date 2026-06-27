@@ -1,8 +1,9 @@
 "use client";
 
+import { AdvancedSettingsSection } from "@/components/calendar-admin/advanced-settings-section";
 import { WorkingHoursEditor } from "@/components/calendar-admin/working-hours-editor";
 import { TimezoneSelect } from "@/components/calendar-admin/timezone-select";
-import { Button, Input, Label } from "@/components/ui";
+import { Button, Checkbox, Input, Label } from "@/components/ui";
 import type {
   CalendarMember,
   IanaTimezone,
@@ -51,6 +52,18 @@ export function initialMemberTimezone(
   return memberTimezone ?? calendarTimezone;
 }
 
+export function memberAdvancedDefaultOpen(member: CalendarMember | null): boolean {
+  if (!member) {
+    return false;
+  }
+  return (
+    member.maxPerDayOverride != null ||
+    member.maxPerWeekOverride != null ||
+    memberHasHoursOverride(member.workingHoursOverride) ||
+    member.assignmentWeight !== 100
+  );
+}
+
 export function buildMemberSavePayload(fields: {
   email: string;
   displayName?: string;
@@ -59,12 +72,14 @@ export function buildMemberSavePayload(fields: {
   useCalendarDefaultHours: boolean;
   workingHoursOverride: WorkingHours;
   timezone: IanaTimezone;
+  assignmentWeight?: number;
 }) {
   const payload: Record<string, unknown> = {
     email: fields.email,
     displayName: fields.displayName,
     maxPerDayOverride: fields.maxPerDayOverride,
     maxPerWeekOverride: fields.maxPerWeekOverride,
+    assignmentWeight: fields.assignmentWeight,
   };
 
   if (fields.useCalendarDefaultHours) {
@@ -92,6 +107,9 @@ export function MemberForm(props: MemberFormProps) {
   );
   const [maxPerWeekOverride, setMaxPerWeekOverride] = useState(
     isEdit ? (props.member.maxPerWeekOverride?.toString() ?? "") : "",
+  );
+  const [assignmentWeight, setAssignmentWeight] = useState(
+    isEdit ? String(props.member.assignmentWeight) : "100",
   );
   const [useCalendarDefaultHours, setUseCalendarDefaultHours] = useState(() =>
     initialUseCalendarDefaultHours(member?.workingHoursOverride),
@@ -122,6 +140,7 @@ export function MemberForm(props: MemberFormProps) {
       maxPerWeekOverride: maxPerWeekOverride
         ? Number(maxPerWeekOverride)
         : undefined,
+      assignmentWeight: Number(assignmentWeight),
       useCalendarDefaultHours,
       workingHoursOverride,
       timezone: memberTimezone,
@@ -160,84 +179,106 @@ export function MemberForm(props: MemberFormProps) {
           </p>
         )}
 
-        <Label className="space-y-1.5">
-          Email
-          <Input
-            required
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </Label>
+        <div className="space-y-4">
+          <h3 className="text-heading font-semibold text-ink">Standard settings</h3>
 
-        <Label className="space-y-1.5">
-          Display name
-          <Input
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-          />
-        </Label>
-
-        <div className="grid grid-cols-2 gap-4">
           <Label className="space-y-1.5">
-            Max / day override
+            Email
             <Input
-              type="number"
-              value={maxPerDayOverride}
-              onChange={(e) => setMaxPerDayOverride(e.target.value)}
-              placeholder={`Default ${props.calendarDefaultDay}`}
+              required
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
-            <span className="block text-xs text-ink-muted">
-              Leave blank to use calendar default ({props.calendarDefaultDay}/day).
-            </span>
           </Label>
+
           <Label className="space-y-1.5">
-            Max / week override
+            Display name
             <Input
-              type="number"
-              value={maxPerWeekOverride}
-              onChange={(e) => setMaxPerWeekOverride(e.target.value)}
-              placeholder={`Default ${props.calendarDefaultWeek}`}
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
             />
-            <span className="block text-xs text-ink-muted">
-              Leave blank to use calendar default ({props.calendarDefaultWeek}/week).
-            </span>
           </Label>
         </div>
 
-        <div className="space-y-4 border-t border-border pt-6">
-          <Label className="flex cursor-pointer items-center gap-2">
-            <input
-              type="checkbox"
-              checked={useCalendarDefaultHours}
-              disabled={saving}
-              onChange={(e) => setUseCalendarDefaultHours(e.target.checked)}
-              className="size-4 rounded border-border"
+        <AdvancedSettingsSection
+          description="Cap overrides, assignment weight, and custom working hours."
+          defaultOpen={memberAdvancedDefaultOpen(member)}
+        >
+          <div className="grid grid-cols-2 gap-4">
+            <Label className="space-y-1.5">
+              Max / day override
+              <Input
+                type="number"
+                value={maxPerDayOverride}
+                onChange={(e) => setMaxPerDayOverride(e.target.value)}
+                placeholder={`Default ${props.calendarDefaultDay}`}
+              />
+              <span className="block text-xs text-ink-muted">
+                Leave blank to use calendar default ({props.calendarDefaultDay}/day).
+              </span>
+            </Label>
+            <Label className="space-y-1.5">
+              Max / week override
+              <Input
+                type="number"
+                value={maxPerWeekOverride}
+                onChange={(e) => setMaxPerWeekOverride(e.target.value)}
+                placeholder={`Default ${props.calendarDefaultWeek}`}
+              />
+              <span className="block text-xs text-ink-muted">
+                Leave blank to use calendar default ({props.calendarDefaultWeek}/week).
+              </span>
+            </Label>
+          </div>
+
+          <Label className="space-y-1.5">
+            Assignment weight
+            <Input
+              type="number"
+              min={1}
+              max={1000}
+              required
+              value={assignmentWeight}
+              onChange={(e) => setAssignmentWeight(e.target.value)}
             />
-            <span className="text-sm font-medium text-ink">
-              Use calendar default hours
+            <span className="block text-xs text-ink-muted">
+              Used when scheduling mode is Weighted round robin (1–1000, default 100).
             </span>
           </Label>
 
-          {!useCalendarDefaultHours && (
-            <div className="space-y-4">
-              <p className="text-xs text-ink-muted">
-                Hours interpreted in member timezone.
-              </p>
-              <TimezoneSelect
-                value={memberTimezone}
-                onChange={setMemberTimezone}
-                label="Member timezone"
+          <div className="space-y-4 border-t border-border pt-4">
+            <Label className="flex cursor-pointer items-center gap-2">
+              <Checkbox
+                checked={useCalendarDefaultHours}
                 disabled={saving}
+                onChange={(e) => setUseCalendarDefaultHours(e.target.checked)}
               />
-              <WorkingHoursEditor
-                value={workingHoursOverride}
-                onChange={setWorkingHoursOverride}
-                disabled={saving}
-              />
-            </div>
-          )}
-        </div>
+              <span className="text-sm font-medium text-ink">
+                Use calendar default hours
+              </span>
+            </Label>
+
+            {!useCalendarDefaultHours && (
+              <div className="space-y-4">
+                <p className="text-xs text-ink-muted">
+                  Hours interpreted in member timezone.
+                </p>
+                <TimezoneSelect
+                  value={memberTimezone}
+                  onChange={setMemberTimezone}
+                  label="Member timezone"
+                  disabled={saving}
+                />
+                <WorkingHoursEditor
+                  value={workingHoursOverride}
+                  onChange={setWorkingHoursOverride}
+                  disabled={saving}
+                />
+              </div>
+            )}
+          </div>
+        </AdvancedSettingsSection>
       </div>
 
       <div className="sticky bottom-0 -mx-6 mt-8 flex gap-3 border-t border-border bg-surface px-6 py-4">

@@ -24,6 +24,7 @@ export type CreateMemberBody = {
   maxPerWeekOverride?: number;
   workingHoursOverride?: WorkingHours | null;
   timezone?: IanaTimezone | null;
+  assignmentWeight?: number;
 };
 
 export type UpdateMemberBody = Partial<CreateMemberBody>;
@@ -36,6 +37,10 @@ export type ConfirmBookingBody = {
   invitees: string[];
   guestEmail?: string;
   viewerTimezone: IanaTimezone;
+  teamId?: string;
+  memberId?: string;
+  bookingLinkId?: string;
+  forceDuplicate?: boolean;
 };
 
 export type PublicCalendar = {

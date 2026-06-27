@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppDeps } from "@/lib/deps";
+import { createPlatformDepsStub } from "@/lib/test/mock-platform-deps";
 import type { CalendarBundle, ConfirmBookingBody } from "@/lib/types";
 import { cancelMeeting } from "./cancel-meeting";
 import { confirmBooking, MIN_NOTICE_VIOLATION } from "./confirm-booking";
@@ -12,6 +13,28 @@ import {
 } from "./slots-cache";
 import { parseSlotsQuery } from "./parse-slots-query";
 import { toPublicCalendar, toPublicMeeting } from "./to-public-meeting";
+import { defaultSchedulingSettingsStub } from "@/lib/stubs/scheduling-settings-stub";
+
+const { mockSchedulingSettings } = vi.hoisted(() => ({
+  mockSchedulingSettings: {
+    assignmentMode: "load_balanced_round_robin" as const,
+    teamSelectionMode: "url_with_default" as const,
+    defaultTeamId: null,
+    rescheduleAssignment: "keep_member" as const,
+    strictRotation: {},
+    weightedDeficits: {},
+  },
+}));
+
+vi.mock("@/lib/scheduling/load-scheduling-settings", () => ({
+  loadCalendarSchedulingSettings: vi.fn().mockResolvedValue(mockSchedulingSettings),
+  advanceStrictRotation: vi.fn(),
+  advanceWeightedDeficits: vi.fn(),
+}));
+
+vi.mock("@/lib/booking/advance-assignment-state", () => ({
+  advanceAssignmentState: vi.fn().mockResolvedValue(undefined),
+}));
 
 const sampleBundle: CalendarBundle = {
   id: "cal-1",
@@ -42,12 +65,13 @@ const sampleBundle: CalendarBundle = {
       workingHoursOverride: null,
       timezone: null,
       sortOrder: 1,
+      assignmentWeight: 100,
     },
   ],
 };
 
 const sampleBody: ConfirmBookingBody = {
-  startsAt: "2026-06-10T14:00:00.000Z",
+  startsAt: "2027-06-10T14:00:00.000Z",
   durationMinutes: 30,
   subject: "Panel interview",
   body: "Please join on time.",
@@ -68,6 +92,9 @@ const insertedMeetingRow = {
   meetLink: "https://meet.google.com/abc",
   bookedBy: "scheduler" as const,
   guestEmail: null,
+  teamId: null,
+  bookingLinkId: null,
+  cancelledAt: null,
   createdAt: "2026-06-03T12:00:00.000Z",
 };
 
@@ -91,11 +118,13 @@ vi.mock("@/lib/db/client", () => ({
 
 function createMockDeps(overrides?: Partial<AppDeps>): AppDeps {
   return {
+    ...createPlatformDepsStub(),
     slots: {
       getAvailableSlots: vi.fn(),
       assignMember: vi.fn().mockResolvedValue({
         ok: true,
         member: sampleBundle.members[0],
+        eligibleMembers: sampleBundle.members,
       }),
     },
     google: {
@@ -142,6 +171,9 @@ describe("confirmBooking", () => {
       startsAt: sampleBody.startsAt,
       durationMinutes: sampleBody.durationMinutes,
       viewerTimezone: sampleBody.viewerTimezone,
+      teamId: undefined,
+      memberId: undefined,
+      scheduling: mockSchedulingSettings,
     });
 
     expect(deps.google.createMeetingEvent).toHaveBeenCalledWith({

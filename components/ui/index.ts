@@ -6,6 +6,8 @@ export { Badge } from "./badge";
 export { Button } from "./button";
 export type { ButtonProps, ButtonSize, ButtonVariant } from "./button";
 export { Card } from "./card";
+export { Checkbox } from "./checkbox";
+export type { CheckboxProps } from "./checkbox";
 export { Chip } from "./chip";
 export type { ChipProps, ChipShape } from "./chip";
 export { Dialog } from "./dialog";

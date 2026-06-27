@@ -1,0 +1,107 @@
+import { and, eq } from "drizzle-orm";
+import { NextResponse } from "next/server";
+import {
+  jsonError,
+  requireSchedulerId,
+} from "@/components/calendar-admin/require-scheduler";
+import { getDb } from "@/lib/db/client";
+import { calendars } from "@/lib/db/schema";
+import {
+  createWebhookEndpoint,
+  listWebhookEndpoints,
+  type CreateWebhookInput,
+} from "@/lib/events/webhooks";
+import type { AppEventType } from "@/lib/types/platform";
+
+type RouteParams = { params: Promise<{ id: string }> };
+
+const ALL_EVENT_TYPES = new Set<AppEventType>([
+  "meeting.booked",
+  "meeting.cancelled",
+  "meeting.rescheduled",
+  "meeting.reassigned",
+  "meeting.before",
+  "meeting.after",
+  "salesforce.sync_succeeded",
+  "salesforce.sync_failed",
+  "booking.duplicate_blocked",
+  "routing.owner_overflow",
+]);
+
+async function getOwnedCalendar(calendarId: string, schedulerId: string) {
+  const [calendar] = await getDb()
+    .select()
+    .from(calendars)
+    .where(
+      and(
+        eq(calendars.id, calendarId),
+        eq(calendars.schedulerId, schedulerId),
+      ),
+    )
+    .limit(1);
+  return calendar ?? null;
+}
+
+function validateEnabledEvents(events: unknown): AppEventType[] | null {
+  if (!Array.isArray(events) || events.length === 0) {
+    return null;
+  }
+  for (const event of events) {
+    if (typeof event !== "string" || !ALL_EVENT_TYPES.has(event as AppEventType)) {
+      return null;
+    }
+  }
+  return events as AppEventType[];
+}
+
+export async function GET(_request: Request, { params }: RouteParams) {
+  const auth = await requireSchedulerId();
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
+
+  const { id: calendarId } = await params;
+  const calendar = await getOwnedCalendar(calendarId, auth.schedulerId);
+  if (!calendar) {
+    return jsonError("Calendar not found", 404);
+  }
+
+  const endpoints = await listWebhookEndpoints(calendarId);
+  return NextResponse.json({ endpoints });
+}
+
+export async function POST(request: Request, { params }: RouteParams) {
+  const auth = await requireSchedulerId();
+  if (auth instanceof NextResponse) {
+    return auth;
+  }
+
+  const { id: calendarId } = await params;
+  const calendar = await getOwnedCalendar(calendarId, auth.schedulerId);
+  if (!calendar) {
+    return jsonError("Calendar not found", 404);
+  }
+
+  let body: CreateWebhookInput;
+  try {
+    body = (await request.json()) as CreateWebhookInput;
+  } catch {
+    return jsonError("Invalid JSON body", 400);
+  }
+
+  if (!body.url || typeof body.url !== "string") {
+    return jsonError("url is required", 400);
+  }
+
+  const enabledEvents = validateEnabledEvents(body.enabledEvents);
+  if (!enabledEvents) {
+    return jsonError("enabledEvents must be a non-empty array of event types", 400);
+  }
+
+  const endpoint = await createWebhookEndpoint(calendarId, {
+    url: body.url,
+    enabledEvents,
+  });
+
+  return NextResponse.json({ endpoint }, { status: 201 });
+}

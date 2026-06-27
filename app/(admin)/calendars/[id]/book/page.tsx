@@ -3,7 +3,6 @@ import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { BookingFlow } from "@/components/booking/booking-flow";
 import { loadCalendarBundle } from "@/components/calendar-admin/load-calendar-bundle";
-import { PageContainer } from "@/components/layout/page-container";
 import { Button, PageHeader } from "@/components/ui";
 import { getSchedulerId } from "@/lib/auth";
 import { calendarPageTitle, pageTitle } from "@/lib/brand/metadata";
@@ -41,12 +40,10 @@ export default async function AdminBookPage({ params }: PageProps) {
   }
 
   return (
-    <PageContainer variant="booking">
+    <>
       <PageHeader
         title="Book a meeting"
         subtitle="Schedule on behalf of a candidate or internal guest."
-        backHref={`/calendars/${id}`}
-        backLabel={bundle.name}
         actions={
           <Button asChild variant="secondary" size="sm" className="w-full sm:w-auto">
             <Link href={`/calendars/${id}/meetings`}>View meetings</Link>
@@ -68,6 +65,6 @@ export default async function AdminBookPage({ params }: PageProps) {
           showPanelistCount
         />
       </Suspense>
-    </PageContainer>
+    </>
   );
 }

@@ -1,9 +1,10 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BookingStepper } from "@/components/booking/booking-stepper";
 import { BookingSuccessPanel } from "@/components/booking/booking-success";
+import { DuplicatePrompt } from "@/components/booking/duplicate-prompt";
 import {
   countSlotsByDate,
   getMonthBounds,
@@ -20,6 +21,7 @@ import { BookingDatePanel } from "@/components/booking/steps/booking-date-panel"
 import { BookingDetailsPanel } from "@/components/booking/steps/booking-details-panel";
 import { BookingDurationPanel } from "@/components/booking/steps/booking-duration-panel";
 import { SlotPicker } from "@/components/booking/slot-picker";
+import { TeamPicker, type TeamOption } from "@/components/booking/team-picker";
 import {
   defaultViewerTimezone,
   TimezoneSelector,
@@ -36,6 +38,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import type { BookingStepId } from "@/components/ui/stepper";
 import type { ConfirmBookingBody, PublicMeeting, Slot } from "@/lib/types";
+import { parseBookingUrlContext } from "@/lib/routing/parse-request-path";
+
+function slugFromApiPath(apiPath: string): string | null {
+  const match = apiPath.match(/\/api\/book\/([^/]+)\//);
+  return match?.[1] ?? null;
+}
 
 function monthCacheKey(
   year: number,
@@ -175,9 +183,19 @@ export function BookingFlow({
   confirmApiPath,
   isPublic = false,
   showPanelistCount = !isPublic,
+  calendarSlug: calendarSlugProp,
   onConfirmed,
 }: BookingFlowProps) {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const calendarSlug =
+    calendarSlugProp ?? slugFromApiPath(slotsApiPath) ?? slugFromApiPath(confirmApiPath);
+  const urlContext = useMemo(() => {
+    if (!calendarSlug) {
+      return null;
+    }
+    return parseBookingUrlContext(calendarSlug, pathname, searchParams);
+  }, [calendarSlug, pathname, searchParams]);
   const deepLink = useMemo(
     () => parseBookingDeepLink(searchParams, durations),
     [searchParams, durations],
@@ -222,6 +240,76 @@ export function BookingFlow({
   const [confirmedMeeting, setConfirmedMeeting] = useState<PublicMeeting | null>(
     null,
   );
+  const [metadataTeams, setMetadataTeams] = useState<TeamOption[]>([]);
+  const [teamSelectionMode, setTeamSelectionMode] = useState<string | null>(
+    null,
+  );
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [teamPickerResolved, setTeamPickerResolved] = useState(!isPublic);
+  const [metadataLoading, setMetadataLoading] = useState(isPublic);
+  const [duplicatePrompt, setDuplicatePrompt] = useState<{
+    manageUrl: string;
+    meeting: PublicMeeting;
+    redirectUrl?: string;
+  } | null>(null);
+
+  const teamIdForBooking = useMemo(() => {
+    if (urlContext?.teamSlug && metadataTeams.length > 0) {
+      const fromUrl = metadataTeams.find((team) => team.slug === urlContext.teamSlug);
+      if (fromUrl) {
+        return fromUrl.id;
+      }
+    }
+    return selectedTeamId;
+  }, [metadataTeams, selectedTeamId, urlContext?.teamSlug]);
+
+  const needsTeamPicker =
+    isPublic &&
+    metadataTeams.length > 1 &&
+    teamSelectionMode === "url_only" &&
+    !urlContext?.teamSlug &&
+    !teamIdForBooking;
+
+  useEffect(() => {
+    if (!isPublic || !calendarSlug) {
+      setMetadataLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      setMetadataLoading(true);
+      try {
+        const metaRes = await fetch(`/api/book/${calendarSlug}`);
+        const meta = (await metaRes.json()) as {
+          teams?: TeamOption[];
+          settings?: { teamSelectionMode?: string };
+        };
+        if (!cancelled) {
+          setMetadataTeams(meta.teams ?? []);
+          setTeamSelectionMode(meta.settings?.teamSelectionMode ?? null);
+        }
+      } catch {
+        if (!cancelled) {
+          setMetadataTeams([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setMetadataLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [calendarSlug, isPublic]);
+
+  useEffect(() => {
+    if (!needsTeamPicker && !metadataLoading) {
+      setTeamPickerResolved(true);
+    }
+  }, [needsTeamPicker, metadataLoading]);
 
   const { minDate, maxDate } = useMemo(
     () => computeBookingWindow(bookingWindowDays),
@@ -274,6 +362,9 @@ export function BookingFlow({
         to: range.to,
         tz: viewerTimezone,
       });
+      if (teamIdForBooking) {
+        params.set("teamId", teamIdForBooking);
+      }
       const res = await fetch(`${slotsApiPath}?${params}`);
       const data = (await res.json()) as { slots?: Slot[]; error?: string };
       if (!res.ok) {
@@ -295,6 +386,7 @@ export function BookingFlow({
     minDate,
     maxDate,
     slotsApiPath,
+    teamIdForBooking,
   ]);
 
   useEffect(() => {
@@ -346,6 +438,9 @@ export function BookingFlow({
           to: range.to,
           tz: viewerTimezone,
         });
+        if (teamIdForBooking) {
+          params.set("teamId", teamIdForBooking);
+        }
         const res = await fetch(`${slotsApiPath}?${params}`);
         const data = (await res.json()) as { slots?: Slot[]; error?: string };
         if (!res.ok) {
@@ -397,6 +492,7 @@ export function BookingFlow({
     slotsApiPath,
     minDate,
     maxDate,
+    teamIdForBooking,
   ]);
 
   function handleTimezoneChange(tz: string) {
@@ -456,7 +552,33 @@ export function BookingFlow({
     }
   }
 
-  async function handleConfirm() {
+  async function completeBookingSuccess(
+    meeting: PublicMeeting,
+    options?: {
+      duplicateWarning?: { manageUrl: string };
+      redirectUrl?: string;
+    },
+  ) {
+    if (options?.duplicateWarning) {
+      setDuplicatePrompt({
+        manageUrl: options.duplicateWarning.manageUrl,
+        meeting,
+        redirectUrl: options.redirectUrl,
+      });
+      return;
+    }
+
+    if (options?.redirectUrl) {
+      window.location.href = options.redirectUrl;
+      return;
+    }
+
+    setConfirmedMeeting(meeting);
+    onConfirmed?.(meeting);
+    setStep("done");
+  }
+
+  async function handleConfirm(forceDuplicate = false) {
     if (!durationMinutes || !selectedStartsAt) {
       return;
     }
@@ -469,6 +591,8 @@ export function BookingFlow({
       body: body.trim(),
       invitees: inviteeList,
       viewerTimezone,
+      ...(teamIdForBooking ? { teamId: teamIdForBooking } : {}),
+      ...(forceDuplicate ? { forceDuplicate: true } : {}),
       ...(isPublic && guestEmail.trim()
         ? { guestEmail: guestEmail.trim() }
         : {}),
@@ -486,7 +610,19 @@ export function BookingFlow({
         meeting?: PublicMeeting;
         error?: string;
         message?: string;
+        manageUrl?: string;
+        duplicateWarning?: { existingMeetingId: string; manageUrl: string };
+        redirectUrl?: string;
       };
+
+      if (data.error === "DUPLICATE_MEETING") {
+        setError(
+          data.manageUrl
+            ? "You already have a meeting. Use the manage link in your email or pick another time."
+            : "You already have a meeting scheduled with this email.",
+        );
+        return;
+      }
 
       if (res.status === 409) {
         setStep("time");
@@ -517,9 +653,10 @@ export function BookingFlow({
       }
 
       if (data.meeting) {
-        setConfirmedMeeting(data.meeting);
-        onConfirmed?.(data.meeting);
-        setStep("done");
+        await completeBookingSuccess(data.meeting, {
+          duplicateWarning: data.duplicateWarning,
+          redirectUrl: data.redirectUrl,
+        });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Booking failed");
@@ -539,6 +676,67 @@ export function BookingFlow({
       (!isPublic || guestEmail.trim().length > 0));
 
   const showBack = step !== "duration" && !(skipDurationStep && step === "date");
+
+  if (duplicatePrompt) {
+    return (
+      <DuplicatePrompt
+        manageUrl={duplicatePrompt.manageUrl}
+        loading={submitting}
+        onCancel={() => {
+          setDuplicatePrompt(null);
+          setStep("time");
+          setSelectedStartsAt(null);
+        }}
+        onContinue={() => {
+          void (async () => {
+            const pending = duplicatePrompt;
+            setDuplicatePrompt(null);
+            await handleConfirm(true);
+            if (pending?.redirectUrl) {
+              window.location.href = pending.redirectUrl;
+            }
+          })();
+        }}
+      />
+    );
+  }
+
+  if (metadataLoading || (needsTeamPicker && !teamPickerResolved)) {
+    if (needsTeamPicker && !metadataLoading) {
+      return (
+        <div className="rounded-xl border border-neutral-100 bg-white p-4 shadow-s3">
+          <h2 className="mb-4 font-grotesk text-lg font-medium text-neutral-900">
+            Choose a team
+          </h2>
+          <TeamPicker
+            teams={metadataTeams}
+            selectedTeamId={selectedTeamId}
+            onSelect={setSelectedTeamId}
+          />
+          <div className="mt-4 flex justify-end">
+            <Button
+              type="button"
+              disabled={!selectedTeamId}
+              onClick={() => setTeamPickerResolved(true)}
+            >
+              Continue
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className="flex flex-col gap-4 py-12"
+        data-testid="booking-metadata-loading"
+        aria-busy
+      >
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-40 w-full max-w-lg" />
+      </div>
+    );
+  }
 
   if (step === "done" && confirmedMeeting) {
     return (
@@ -590,7 +788,7 @@ export function BookingFlow({
         ) : null}
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-neutral-100 bg-white shadow-s3">
-          <div className="flex flex-col gap-3 border-b border-neutral-100 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-3 border-b border-neutral-100 px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
             <h2 className="min-w-0 font-grotesk text-lg font-medium text-neutral-900">
               {stepTitle(step, selectedDate, viewerTimezone)}
             </h2>
@@ -600,7 +798,7 @@ export function BookingFlow({
             />
           </div>
 
-          <div key={step} className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+          <div key={step} className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
             <div className="animate-step-in">
               {step === "duration" ? (
                 <BookingDurationPanel
@@ -666,7 +864,7 @@ export function BookingFlow({
             </div>
           </div>
 
-          <footer className="sticky bottom-0 shrink-0 border-t border-neutral-100 bg-neutral-25 px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <footer className="sticky bottom-0 shrink-0 border-t border-neutral-100 bg-neutral-25 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
             <div className="flex items-center justify-between gap-3">
               <Button
                 type="button"

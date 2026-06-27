@@ -2,6 +2,7 @@ import type { GoogleCalendarPort } from "@/lib/ports/google-calendar";
 import type { DbMeetingCounter } from "@/lib/ports/meeting-counter";
 import type { GetSlotsRequest } from "@/lib/ports/slot-engine";
 import type { Slot } from "@/lib/types";
+import { filterBundleMembers } from "./filter-members";
 import { getEligibleMembersSync } from "./eligibility";
 import {
   freeBusyCacheKey,
@@ -23,6 +24,15 @@ export async function computeAvailableSlots(
   deps: SlotEngineDeps,
   req: GetSlotsRequest,
 ): Promise<Slot[]> {
+  const members = await filterBundleMembers(req.bundle, {
+    teamId: req.teamId,
+    memberId: req.memberId,
+  });
+  if (members.length === 0) {
+    return [];
+  }
+  const bundle = { ...req.bundle, members };
+
   const now = new Date();
   const rangeStart = new Date(req.rangeStart);
   const rangeEnd = new Date(req.rangeEnd);
@@ -62,23 +72,23 @@ export async function computeAvailableSlots(
   }
 
   const freeBusyKey = freeBusyCacheKey({
-    calendarId: req.bundle.id,
+    calendarId: bundle.id,
     timeMin: windowStart.toISOString(),
     timeMax: windowEnd.toISOString(),
-    emails: req.bundle.members.map((m) => m.email).join(","),
+    emails: bundle.members.map((m) => m.email).join(","),
   });
 
   let freeBusy = getCachedFreeBusy(freeBusyKey);
   if (!freeBusy) {
     freeBusy = await deps.google.queryFreeBusy({
-      memberEmails: req.bundle.members.map((m) => m.email),
+      memberEmails: bundle.members.map((m) => m.email),
       timeMin: windowStart.toISOString(),
       timeMax: windowEnd.toISOString(),
     });
     setCachedFreeBusy(freeBusyKey, freeBusy);
   }
 
-  const memberIds = req.bundle.members.map((member) => member.id);
+  const memberIds = bundle.members.map((member) => member.id);
   const prefetchedMeetings = await deps.db.listMeetingStartsForMembers(
     memberIds,
     new Date(windowStart.getTime() - 7 * 24 * 60 * 60_000).toISOString(),
@@ -93,7 +103,7 @@ export async function computeAvailableSlots(
     windowEnd.getTime()
   ) {
     const eligible = getEligibleMembersSync({
-      bundle: req.bundle,
+      bundle,
       startsAt: cursor,
       durationMinutes: req.durationMinutes,
       viewerTimezone: req.viewerTimezone,
