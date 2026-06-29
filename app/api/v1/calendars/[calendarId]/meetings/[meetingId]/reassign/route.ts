@@ -1,8 +1,10 @@
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { reassignMeeting } from "@/lib/booking/reassign-meeting";
 import { createAppDeps } from "@/lib/deps";
 import { getDb } from "@/lib/db/client";
 import { loadCalendarBundleByCalendarId } from "@/lib/db/assemble-calendar-bundle";
+import { meetings } from "@/lib/db/schema";
 import { requireApiKeyAuth } from "@/lib/events/api-key-auth";
 
 type RouteParams = {
@@ -22,15 +24,24 @@ export async function POST(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "Calendar not found" }, { status: 404 });
   }
 
+  const [target] = await getDb()
+    .select({ calendarId: meetings.calendarId })
+    .from(meetings)
+    .where(eq(meetings.id, meetingId))
+    .limit(1);
+  if (!target || target.calendarId !== calendarId) {
+    return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
+  }
+
   let body: { memberId: string };
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
   if (!body.memberId) {
-    return NextResponse.json({ error: "memberId required" }, { status: 400 });
+    return NextResponse.json({ error: "memberId is required" }, { status: 400 });
   }
 
   const deps = createAppDeps();
@@ -41,13 +52,19 @@ export async function POST(request: Request, { params }: RouteParams) {
   });
 
   if (!result.ok) {
-    const status =
-      result.code === "NOT_FOUND"
-        ? 404
-        : result.code === "GOOGLE_ERROR"
-          ? 502
-          : 409;
-    return NextResponse.json({ error: result.code, message: result.message }, { status });
+    if (result.code === "MEMBER_INELIGIBLE") {
+      return NextResponse.json({ error: "MEMBER_INELIGIBLE" }, { status: 409 });
+    }
+    if (result.code === "CANCELLED" || result.code === "PAST") {
+      return NextResponse.json({ error: result.code }, { status: 410 });
+    }
+    if (result.code === "GOOGLE_ERROR") {
+      return NextResponse.json(
+        { error: result.message ?? "Could not update calendar event" },
+        { status: 502 },
+      );
+    }
+    return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
   }
 
   return NextResponse.json({ meeting: result.meeting });

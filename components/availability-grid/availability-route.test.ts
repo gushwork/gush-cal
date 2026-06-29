@@ -68,6 +68,40 @@ describe("GET /api/calendars/:id/availability", () => {
     expect(response.status).toBe(400);
   });
 
+  it("returns 400 for a reversed range without hitting freeBusy", async () => {
+    requireSchedulerId.mockResolvedValue({ schedulerId: "sched-1" });
+
+    const { GET } = await import(
+      "@/app/api/calendars/[id]/availability/route"
+    );
+    const response = await GET(
+      new Request(
+        "http://localhost/api/calendars/cal-1/availability?from=2026-06-03T23:59:59.000Z&to=2026-06-03T00:00:00.000Z",
+      ),
+      { params: Promise.resolve({ id: "cal-1" }) },
+    );
+
+    expect(response.status).toBe(400);
+    expect(queryFreeBusy).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for non-timestamp garbage", async () => {
+    requireSchedulerId.mockResolvedValue({ schedulerId: "sched-1" });
+
+    const { GET } = await import(
+      "@/app/api/calendars/[id]/availability/route"
+    );
+    const response = await GET(
+      new Request(
+        "http://localhost/api/calendars/cal-1/availability?from=not-a-date&to=also-bad",
+      ),
+      { params: Promise.resolve({ id: "cal-1" }) },
+    );
+
+    expect(response.status).toBe(400);
+    expect(queryFreeBusy).not.toHaveBeenCalled();
+  });
+
   it("returns member busy blocks with inaccessible status on google errors", async () => {
     requireSchedulerId.mockResolvedValue({ schedulerId: "sched-1" });
     loadCalendarBundle.mockResolvedValue({

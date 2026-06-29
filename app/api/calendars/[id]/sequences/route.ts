@@ -6,12 +6,12 @@ import {
 } from "@/components/calendar-admin/require-scheduler";
 import {
   createSequence,
+  isAppEventType,
   listSequences,
   type CreateSequenceInput,
 } from "@/lib/email/sequences";
 import { getDb } from "@/lib/db/client";
 import { calendars } from "@/lib/db/schema";
-import type { AppEventType } from "@/lib/types/platform";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -67,14 +67,14 @@ export async function POST(request: Request, { params }: RouteParams) {
   if (!body.name?.trim()) {
     return jsonError("name is required", 400);
   }
-  if (!body.triggerEvent) {
-    return jsonError("triggerEvent is required", 400);
+  if (!isAppEventType(body.triggerEvent)) {
+    return jsonError("triggerEvent must be a valid event type", 400);
   }
 
   const sequence = await createSequence(calendarId, {
     name: body.name.trim(),
     enabled: body.enabled,
-    triggerEvent: body.triggerEvent as AppEventType,
+    triggerEvent: body.triggerEvent,
   });
 
   return NextResponse.json({ sequence }, { status: 201 });

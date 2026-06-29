@@ -7,11 +7,11 @@ import {
 import {
   createFieldMap,
   listFieldMaps,
+  validateFieldMapInput,
   type CreateFieldMapInput,
 } from "@/lib/salesforce/field-map";
 import { getDb } from "@/lib/db/client";
 import { calendars } from "@/lib/db/schema";
-import type { SalesforceEventType } from "@/lib/types/platform";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -64,19 +64,13 @@ export async function POST(request: Request, { params }: RouteParams) {
     return jsonError("Invalid JSON body", 400);
   }
 
-  const eventType = body.eventType as SalesforceEventType;
-  if (!eventType || !["book", "cancel", "reschedule", "reassign"].includes(eventType)) {
-    return jsonError("eventType must be book, cancel, reschedule, or reassign", 400);
-  }
-  if (!body.objectApiName) {
-    return jsonError("objectApiName is required", 400);
-  }
-  if (!Array.isArray(body.fieldMappings) || body.fieldMappings.length === 0) {
-    return jsonError("fieldMappings is required", 400);
+  const validationError = validateFieldMapInput(body, false);
+  if (validationError) {
+    return jsonError(validationError, 400);
   }
 
   try {
-    const fieldMap = await createFieldMap(calendarId, { ...body, eventType });
+    const fieldMap = await createFieldMap(calendarId, body);
     return NextResponse.json({ fieldMap }, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to create field map";

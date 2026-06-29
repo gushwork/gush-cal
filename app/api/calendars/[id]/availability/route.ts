@@ -24,8 +24,10 @@ export async function GET(request: Request, { params }: RouteParams) {
   const from = url.searchParams.get("from");
   const to = url.searchParams.get("to");
 
-  if (!from || !to) {
-    return jsonError("Missing from or to query parameter", 400);
+  const fromMs = from ? Date.parse(from) : NaN;
+  const toMs = to ? Date.parse(to) : NaN;
+  if (!from || !to || Number.isNaN(fromMs) || Number.isNaN(toMs) || fromMs >= toMs) {
+    return jsonError("Invalid from or to query parameter", 400);
   }
 
   const bundle = await loadCalendarBundle(id, auth.schedulerId);

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { CalendarSettings } from "@/lib/types/platform";
 import { defaultCalendarSettings } from "@/lib/types/platform";
 import {
+  bookingLinks,
   calendarMembers,
   calendarSettings,
   teamMembers,
@@ -55,6 +56,54 @@ beforeEach(() => {
   seedSettings(testDb.store);
   setTeamsDbForTest(testDb.db as never);
 });
+
+/**
+ * Queue-based DB that (unlike the shared test-db) understands booking_links and
+ * transactions — used for the cross-table slug-sync / cascade-delete cases.
+ */
+function createCrossTableDb(opts: {
+  selects: unknown[][];
+  teamUpdate?: unknown[];
+}) {
+  const selects = [...opts.selects];
+  const linkPatches: Record<string, unknown>[] = [];
+  const deletes: string[] = [];
+  const nextSelect = () => Promise.resolve(selects.shift() ?? []);
+  const name = (t: unknown) =>
+    t === bookingLinks ? "bookingLinks" : t === teams ? "teams" : "other";
+
+  const db: Record<string, unknown> = {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: () => nextSelect(),
+          then: (res: (v: unknown) => unknown) => nextSelect().then(res),
+        }),
+      }),
+    }),
+    update: (table: unknown) => ({
+      set: (patch: Record<string, unknown>) => ({
+        where: () => ({
+          returning: () => Promise.resolve(opts.teamUpdate ?? []),
+          then: (res: (v: unknown) => unknown) => {
+            if (table === bookingLinks) linkPatches.push(patch);
+            return Promise.resolve([]).then(res);
+          },
+        }),
+      }),
+    }),
+    delete: (table: unknown) => ({
+      where: () => ({
+        then: (res: (v: unknown) => unknown) => {
+          deletes.push(name(table));
+          return Promise.resolve([]).then(res);
+        },
+      }),
+    }),
+    transaction: (fn: (tx: unknown) => unknown) => Promise.resolve(fn(db)),
+  };
+  return { db, linkPatches, deletes };
+}
 
 describe("validateTeamSlug", () => {
   it("accepts lowercase alphanumeric hyphens", () => {
@@ -229,5 +278,72 @@ describe("deleteTeam", () => {
 
     const result = await deleteTeam(calendarId, "t1");
     expect(result).toEqual({ ok: false, code: "DEFAULT_TEAM" });
+  });
+
+  it("deletes the team's booking links with the team (BUG-012)", async () => {
+    const { db, deletes } = createCrossTableDb({
+      selects: [
+        [{ id: "t1", calendarId, name: "Team", slug: "team", sortOrder: 1 }],
+        [],
+      ],
+    });
+    setTeamsDbForTest(db as never);
+
+    const result = await deleteTeam(calendarId, "t1");
+    expect(result).toEqual({ ok: true });
+    expect(deletes).toEqual(["bookingLinks", "teams"]);
+  });
+});
+
+describe("updateTeam cross-table slug sync (BUG-002)", () => {
+  const teamRow = {
+    id: "t1",
+    calendarId,
+    name: "Old",
+    slug: "old",
+    sortOrder: 1,
+  };
+
+  it("rejects a rename colliding with another booking link", async () => {
+    const { db } = createCrossTableDb({
+      selects: [
+        [teamRow], // getTeam
+        [], // team slug free
+        [{ teamId: "other-team" }], // booking link slug taken
+      ],
+    });
+    setTeamsDbForTest(db as never);
+
+    const result = await updateTeam(calendarId, "t1", { slug: "taken" });
+    expect(result).toEqual({ ok: false, code: "SLUG_TAKEN" });
+  });
+
+  it("mirrors the new slug onto the team booking link", async () => {
+    const { db, linkPatches } = createCrossTableDb({
+      selects: [[teamRow], [], []],
+      teamUpdate: [{ ...teamRow, slug: "new-slug" }],
+    });
+    setTeamsDbForTest(db as never);
+
+    const result = await updateTeam(calendarId, "t1", { slug: "new-slug" });
+    expect(result.ok).toBe(true);
+    expect(linkPatches).toEqual([{ slug: "new-slug" }]);
+  });
+});
+
+describe("getTeamMemberIds scoping (BUG-056)", () => {
+  it("returns [] when the team is not in the given calendar", async () => {
+    testDb.store.teams.push({
+      id: "t-cross",
+      calendarId: "cal-2",
+      name: "X",
+      slug: "x",
+      sortOrder: 1,
+    });
+    testDb.store.teamMembers.push({ teamId: "t-cross", memberId: memberA });
+
+    expect(await getTeamMemberIds("t-cross", "cal-1")).toEqual([]);
+    expect(await getTeamMemberIds("t-cross", "cal-2")).toEqual([memberA]);
+    expect(await getTeamMemberIds("t-cross")).toEqual([memberA]);
   });
 });

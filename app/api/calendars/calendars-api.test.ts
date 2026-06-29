@@ -9,6 +9,7 @@ import { PATCH as updateMember } from "./[id]/members/[memberId]/route";
 
 const mockRequireSchedulerId = vi.fn();
 const mockGetDb = vi.fn();
+const mockClearSlotsCache = vi.fn();
 
 vi.mock("@/components/calendar-admin/require-scheduler", () => ({
   requireSchedulerId: () => mockRequireSchedulerId(),
@@ -18,6 +19,10 @@ vi.mock("@/components/calendar-admin/require-scheduler", () => ({
 
 vi.mock("@/lib/db/client", () => ({
   getDb: () => mockGetDb(),
+}));
+
+vi.mock("@/lib/booking/slots-cache", () => ({
+  clearSlotsCacheForCalendar: (id: string) => mockClearSlotsCache(id),
 }));
 
 vi.mock("@/lib/db/slug", async (importOriginal) => {
@@ -211,6 +216,25 @@ describe("POST /api/calendars", () => {
     const data = (await res.json()) as { error: string };
     expect(data.error).toMatch(/Overlapping/);
   });
+
+  it("returns 400 when name is missing", async () => {
+    createDbMock();
+    const { name: _name, ...body } = createCalendarBody;
+    const res = await createCalendar(jsonRequest(body));
+    expect(res.status).toBe(400);
+    const data = (await res.json()) as { error: string };
+    expect(data.error).toMatch(/Name is required/);
+  });
+
+  it("returns 400 when a positive-int field is non-positive", async () => {
+    createDbMock();
+    const res = await createCalendar(
+      jsonRequest({ ...createCalendarBody, bookingWindowDays: 0 }),
+    );
+    expect(res.status).toBe(400);
+    const data = (await res.json()) as { error: string };
+    expect(data.error).toMatch(/bookingWindowDays must be a positive integer/);
+  });
 });
 
 describe("PATCH /api/calendars/:id", () => {
@@ -327,6 +351,27 @@ describe("PATCH /api/calendars/:id", () => {
     );
     expect(res.status).toBe(400);
   });
+
+  it("returns existing calendar for an empty body without running an update", async () => {
+    const db = createDbMock({ selectResults: [[calendarRow]] });
+
+    const res = await updateCalendar(jsonRequest({}, "PATCH"), {
+      params: Promise.resolve({ id: "cal-1" }),
+    });
+    expect(res.status).toBe(200);
+    expect(db.capturedUpdateSet).toBeUndefined();
+  });
+
+  it("clears the slots cache when an availability field changes", async () => {
+    createDbMock({ updateReturning: [{ ...calendarRow, durations: [60] }] });
+
+    const res = await updateCalendar(
+      jsonRequest({ durations: [60] }, "PATCH"),
+      { params: Promise.resolve({ id: "cal-1" }) },
+    );
+    expect(res.status).toBe(200);
+    expect(mockClearSlotsCache).toHaveBeenCalledWith("cal-1");
+  });
 });
 
 describe("POST /api/calendars/:id/members", () => {
@@ -421,6 +466,21 @@ describe("POST /api/calendars/:id/members", () => {
       { params: Promise.resolve({ id: "cal-1" }) },
     );
     expect(res.status).toBe(400);
+  });
+
+  it("returns 400 for a non-positive cap override", async () => {
+    createDbMock({ selectResults: [[calendarRow], [{ value: 0 }]] });
+
+    const res = await createMember(
+      jsonRequest({
+        email: "member@acme.com",
+        maxPerDayOverride: 0,
+      }),
+      { params: Promise.resolve({ id: "cal-1" }) },
+    );
+    expect(res.status).toBe(400);
+    const data = (await res.json()) as { error: string };
+    expect(data.error).toMatch(/Max per day must be a positive integer/);
   });
 
   it("clears timezone when override is empty", async () => {
@@ -523,5 +583,28 @@ describe("PATCH /api/calendars/:id/members/:memberId", () => {
     );
     expect(res.status).toBe(200);
     expect(db.capturedUpdateSet).toMatchObject({ assignmentWeight: 300 });
+  });
+
+  it("returns 400 when email is sent empty", async () => {
+    createDbMock({ selectResults: [[calendarRow]] });
+
+    const res = await updateMember(jsonRequest({ email: "" }, "PATCH"), {
+      params: Promise.resolve({ id: "cal-1", memberId: "mem-1" }),
+    });
+    expect(res.status).toBe(400);
+    const data = (await res.json()) as { error: string };
+    expect(data.error).toMatch(/required/);
+  });
+
+  it("returns 400 for a non-positive cap override", async () => {
+    createDbMock({ selectResults: [[calendarRow]] });
+
+    const res = await updateMember(
+      jsonRequest({ maxPerWeekOverride: -1 }, "PATCH"),
+      { params: Promise.resolve({ id: "cal-1", memberId: "mem-1" }) },
+    );
+    expect(res.status).toBe(400);
+    const data = (await res.json()) as { error: string };
+    expect(data.error).toMatch(/Max per week must be a positive integer/);
   });
 });

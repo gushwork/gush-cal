@@ -1,5 +1,6 @@
 import type { CalendarSettings } from "@/lib/types/platform";
 import type { WorkingHours } from "@/lib/types";
+import { sql } from "drizzle-orm";
 import {
   boolean,
   integer,
@@ -164,6 +165,12 @@ export const meetings = pgTable(
       table.startsAt,
     ),
     index("meetings_guest_email_active_idx").on(table.guestEmail, table.startsAt),
+    // Backstop against double-booking the same member at the same instant.
+    // Partial: cancelled meetings free the slot. Overlap (non-exact) is still
+    // guarded in confirm-booking via eligibility; this catches exact races.
+    uniqueIndex("meetings_member_active_slot_idx")
+      .on(table.assignedMemberId, table.startsAt)
+      .where(sql`${table.cancelledAt} is null`),
   ],
 );
 
@@ -217,6 +224,7 @@ export const webhookEndpoints = pgTable("webhook_endpoints", {
   url: text("url").notNull(),
   secret: text("secret").notNull(),
   enabledEvents: jsonb("enabled_events").notNull().$type<string[]>(),
+  enabled: boolean("enabled").notNull().default(true),
 });
 
 export const apiKeys = pgTable("api_keys", {

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   CalendarBundle,
   CalendarMember,
@@ -120,7 +120,6 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
       ),
     [searchParams, timeZone],
   );
-  const userNavigatedRef = useRef(false);
   const [anchorDate, setAnchorDate] = useState(
     () => initialParams.anchorDate,
   );
@@ -147,11 +146,14 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
     }
   }, [initialParams.urlCorrection, pathname, router]);
 
+  // Follow external URL changes (browser back/forward, shared links).
+  useEffect(() => {
+    setAnchorDate(initialParams.anchorDate);
+    setViewMode(initialParams.viewMode);
+  }, [initialParams.anchorDate, initialParams.viewMode]);
+
   const syncUrl = useCallback(
     (date: Date, mode: ViewMode) => {
-      if (!userNavigatedRef.current) {
-        userNavigatedRef.current = true;
-      }
       const next = buildAvailabilitySearchParams(date, mode, timeZone);
       router.replace(`${pathname}?${next.toString()}`);
     },
@@ -160,7 +162,6 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
 
   const navigateToDate = useCallback(
     (date: Date) => {
-      userNavigatedRef.current = true;
       setAnchorDate(date);
       syncUrl(date, viewMode);
     },
@@ -174,7 +175,6 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
   const shiftAnchor = useCallback(
     (days: number) => {
       const next = addLocalDays(anchorDate, days, timeZone);
-      userNavigatedRef.current = true;
       setAnchorDate(next);
       syncUrl(next, viewMode);
     },
@@ -183,7 +183,6 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
 
   const changeViewMode = useCallback(
     (mode: ViewMode) => {
-      userNavigatedRef.current = true;
       setViewMode(mode);
       syncUrl(anchorDate, mode);
     },

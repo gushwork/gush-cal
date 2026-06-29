@@ -3,13 +3,52 @@ import {
   confirmBooking,
   MIN_NOTICE_VIOLATION,
 } from "@/lib/booking/confirm-booking";
+import { listMeetingsForCalendar } from "@/lib/booking/list-meetings";
 import { createAppDeps } from "@/lib/deps";
 import { getDb } from "@/lib/db/client";
 import { loadCalendarBundleByCalendarId } from "@/lib/db/assemble-calendar-bundle";
 import { requireApiKeyAuth } from "@/lib/events/api-key-auth";
-import type { ConfirmBookingBody } from "@/lib/types";
+import type { ConfirmBookingBody, UtcInstant } from "@/lib/types";
 
 type RouteParams = { params: Promise<{ calendarId: string }> };
+
+export async function GET(request: Request, { params }: RouteParams) {
+  const { calendarId } = await params;
+
+  const auth = await requireApiKeyAuth(request, calendarId);
+  if (!auth.ok) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const bundle = await loadCalendarBundleByCalendarId(getDb(), calendarId);
+  if (!bundle) {
+    return NextResponse.json({ error: "Calendar not found" }, { status: 404 });
+  }
+
+  const searchParams = new URL(request.url).searchParams;
+  const from = searchParams.get("from") ?? undefined;
+  const to = searchParams.get("to") ?? undefined;
+
+  if (from && Number.isNaN(Date.parse(from))) {
+    return NextResponse.json({ error: "Invalid from date" }, { status: 400 });
+  }
+  if (to && Number.isNaN(Date.parse(to))) {
+    return NextResponse.json({ error: "Invalid to date" }, { status: 400 });
+  }
+
+  const meetings = await listMeetingsForCalendar(
+    calendarId,
+    bundle.scheduler.id,
+    from as UtcInstant | undefined,
+    to as UtcInstant | undefined,
+  );
+
+  if (!meetings) {
+    return NextResponse.json({ error: "Calendar not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({ meetings });
+}
 
 export async function POST(request: Request, { params }: RouteParams) {
   const { calendarId } = await params;

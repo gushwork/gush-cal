@@ -1,0 +1,51 @@
+{
+  "schedulerId": "00000000-0000-4000-8000-000000000001",
+  "schedulerEmail": "e2e-scheduler@example.com",
+  "schedulerGoogleSub": "e2e-google-sub-001",
+
+  "calendarId": "00000000-0000-4000-8000-000000000002",
+  "calendarSlug": "e2e-demo",
+  "calendarName": "E2E Demo Calendar",
+
+  "memberId": "00000000-0000-4000-8000-000000000003",
+  "memberEmail": "e2e-member@example.com",
+  "secondMemberId": "00000000-0000-4000-8000-000000000007",
+  "secondMemberEmail": "e2e-member-2@example.com",
+
+  "teamId": "00000000-0000-4000-8000-000000000004",
+  "teamSlug": "e2e-team",
+
+  "bookingLinkId": "00000000-0000-4000-8000-000000000006",
+
+  "meetingId": "00000000-0000-4000-8000-000000000005",
+  "manageMeetingId": "00000000-0000-4000-8000-00000000000f",
+
+  "apiKeyId": "00000000-0000-4000-8000-000000000008",
+  "apiKeyPlaintext": "gw_e2efixedapikeyvaluefortestingonly01",
+  "revokedApiKeyId": "00000000-0000-4000-8000-000000000009",
+  "revokedApiKeyPlaintext": "gw_e2erevokedapikeyvaluefortest0000002",
+
+  "manageTokenId": "00000000-0000-4000-8000-00000000000a",
+  "manageTokenPlaintext": "e2e-valid-manage-token-plaintext-000001",
+  "revokedManageTokenPlaintext": "e2e-revoked-manage-token-plaintext-0002",
+  "expiredManageTokenPlaintext": "e2e-expired-manage-token-plaintext-0003",
+
+  "webhookEndpointId": "00000000-0000-4000-8000-00000000000b",
+  "sequenceId": "00000000-0000-4000-8000-00000000000c",
+  "sequenceStepId": "00000000-0000-4000-8000-00000000000d",
+  "salesforceFieldMapId": "00000000-0000-4000-8000-00000000000e",
+
+  "secondSchedulerId": "00000000-0000-4000-8000-000000000010",
+  "secondSchedulerEmail": "e2e-scheduler-2@example.com",
+  "secondSchedulerGoogleSub": "e2e-google-sub-002",
+  "secondCalendarId": "00000000-0000-4000-8000-000000000011",
+  "secondCalendarSlug": "e2e-demo-2",
+  "secondCalendarMemberId": "00000000-0000-4000-8000-000000000012",
+  "secondMeetingId": "00000000-0000-4000-8000-000000000013",
+
+  "invalidId": "00000000-0000-4000-8000-000000000099",
+  "invalidMeetingId": "00000000-0000-4000-8000-000000000099",
+  "invalidCalendarSlug": "e2e-missing-slug",
+  "invalidToken": "e2e-token-that-does-not-exist-00000099",
+  "invalidApiKey": "gw_thisapikeydoesnotexistinthedb000099"
+}

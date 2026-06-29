@@ -47,6 +47,15 @@ export function BookableOverlay({
   timeZone,
   compact = false,
 }: BookableOverlayProps) {
+  const visibleSlots = slots.filter((slot) => {
+    const end = new Date(
+      new Date(slot.startsAt).getTime() + slot.durationMinutes * 60_000,
+    ).toISOString();
+    return (
+      blockPositionPercent(slot.startsAt, end, rangeStart, timeZone) !== null
+    );
+  });
+
   return (
     <div
       className={cn(
@@ -65,14 +74,14 @@ export function BookableOverlay({
         }
       >
         {compact ? (
-          <Badge variant="count">{slots.length}</Badge>
+          <Badge variant="count">{visibleSlots.length}</Badge>
         ) : (
           <>
             <div className="text-sm font-medium leading-tight text-ink">
               Bookable
             </div>
             <Badge variant="count" className="py-0">
-              {slots.length}
+              {visibleSlots.length}
             </Badge>
           </>
         )}
@@ -80,7 +89,7 @@ export function BookableOverlay({
 
       <div className="relative" style={{ height: `${GRID_TOTAL_MINUTES}px` }}>
         <GridHourLines />
-        {slots.map((slot) => {
+        {visibleSlots.map((slot) => {
           const end = new Date(
             new Date(slot.startsAt).getTime() + slot.durationMinutes * 60_000,
           ).toISOString();

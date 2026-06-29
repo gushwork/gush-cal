@@ -75,15 +75,18 @@ export function minutesSinceGridStart(
   const slotParts = getLocalDateTimeParts(parseUtcInstant(iso), timeZone);
   const rangeParts = getLocalDateTimeParts(parseUtcInstant(rangeStart), timeZone);
 
-  if (
-    slotParts.year !== rangeParts.year ||
-    slotParts.month !== rangeParts.month ||
-    slotParts.day !== rangeParts.day
-  ) {
-    return -1;
-  }
+  const dayDelta = Math.round(
+    (Date.UTC(slotParts.year, slotParts.month - 1, slotParts.day) -
+      Date.UTC(rangeParts.year, rangeParts.month - 1, rangeParts.day)) /
+      86_400_000,
+  );
 
-  return slotParts.hour * 60 + slotParts.minute - GRID_START_HOUR * 60;
+  return (
+    dayDelta * 24 * 60 +
+    slotParts.hour * 60 +
+    slotParts.minute -
+    GRID_START_HOUR * 60
+  );
 }
 
 export function blockPositionPercent(
@@ -95,16 +98,14 @@ export function blockPositionPercent(
   const startMinutes = minutesSinceGridStart(startIso, rangeStart, timeZone);
   const endMinutes = minutesSinceGridStart(endIso, rangeStart, timeZone);
 
-  if (startMinutes < 0 || endMinutes <= 0) {
+  // Visible iff the block overlaps the [0, GRID_TOTAL_MINUTES) window; a block
+  // starting before the window (prior day or pre-07:00) clamps to the top.
+  if (endMinutes <= 0 || startMinutes >= GRID_TOTAL_MINUTES) {
     return null;
   }
 
   const clampedStart = Math.max(0, startMinutes);
   const clampedEnd = Math.min(GRID_TOTAL_MINUTES, endMinutes);
-
-  if (clampedEnd <= 0 || clampedStart >= GRID_TOTAL_MINUTES) {
-    return null;
-  }
 
   const top = (clampedStart / GRID_TOTAL_MINUTES) * 100;
   const height =

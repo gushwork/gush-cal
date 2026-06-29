@@ -3,7 +3,9 @@ import type {
   CalendarSchedulingSettings,
   CalendarSettings,
   RescheduleAssignmentMode,
+  SyncMode,
   TeamSelectionMode,
+  TriggerOffset,
 } from "@/lib/types/platform";
 import { defaultCalendarSettings } from "@/lib/types/platform";
 import { defaultSchedulingSettings } from "./pool-key";
@@ -78,6 +80,72 @@ function slimRouting(raw: LegacySettings | undefined): CalendarRoutingSettings {
   };
 }
 
+function readDuplicate(raw: unknown): CalendarSettings["duplicate"] {
+  const d = defaultCalendarSettings().duplicate;
+  if (!isRecord(raw)) {
+    return d;
+  }
+  const scope =
+    raw.scope === "calendar" ||
+    raw.scope === "scheduler" ||
+    raw.scope === "deployment" ||
+    raw.scope === "salesforce_connection"
+      ? raw.scope
+      : d.scope;
+  const uxMode =
+    raw.uxMode === "hard_block" || raw.uxMode === "soft_warn"
+      ? raw.uxMode
+      : d.uxMode;
+  return { scope, uxMode };
+}
+
+function readRedirect(raw: unknown): CalendarSettings["redirect"] {
+  const d = defaultCalendarSettings().redirect;
+  if (!isRecord(raw)) {
+    return d;
+  }
+  const postBookMode =
+    raw.postBookMode === "confirmation_page" || raw.postBookMode === "redirect"
+      ? raw.postBookMode
+      : d.postBookMode;
+  const redirectUrlTemplate =
+    raw.redirectUrlTemplate === null
+      ? null
+      : readString(raw.redirectUrlTemplate) ?? d.redirectUrlTemplate;
+  return { postBookMode, redirectUrlTemplate };
+}
+
+function readSyncMode(value: unknown, fallback: SyncMode): SyncMode {
+  return value === "sync" || value === "async" ? value : fallback;
+}
+
+function readSalesforceSync(raw: unknown): CalendarSettings["salesforceSync"] {
+  const d = defaultCalendarSettings().salesforceSync;
+  if (!isRecord(raw)) {
+    return d;
+  }
+  return {
+    onBook: readSyncMode(raw.onBook, d.onBook),
+    onCancel: readSyncMode(raw.onCancel, d.onCancel),
+    onReschedule: readSyncMode(raw.onReschedule, d.onReschedule),
+    onReassign: readSyncMode(raw.onReassign, d.onReassign),
+  };
+}
+
+function readTriggerOffsets(raw: unknown): TriggerOffset[] {
+  if (!Array.isArray(raw)) {
+    return defaultCalendarSettings().triggerOffsets;
+  }
+  return raw.filter(
+    (offset): offset is TriggerOffset =>
+      isRecord(offset) &&
+      (offset.type === "before" || offset.type === "after") &&
+      typeof offset.minutes === "number" &&
+      Number.isFinite(offset.minutes) &&
+      offset.minutes >= 0,
+  );
+}
+
 export function normalizeCalendarSettings(raw: unknown): CalendarSettings {
   const defaults = defaultCalendarSettings();
   if (!isRecord(raw)) {
@@ -142,30 +210,18 @@ export function normalizeCalendarSettings(raw: unknown): CalendarSettings {
     legacyScheduling,
   );
 
-  const duplicate = isRecord(raw.duplicate)
-    ? { ...defaults.duplicate, ...raw.duplicate }
-    : defaults.duplicate;
-  const redirect = isRecord(raw.redirect)
-    ? { ...defaults.redirect, ...raw.redirect }
-    : defaults.redirect;
-  const salesforceSync = isRecord(raw.salesforceSync)
-    ? { ...defaults.salesforceSync, ...raw.salesforceSync }
-    : defaults.salesforceSync;
-
   return {
     routing: slimRouting(routingRaw),
     scheduling,
-    duplicate: duplicate as CalendarSettings["duplicate"],
-    redirect: redirect as CalendarSettings["redirect"],
+    duplicate: readDuplicate(raw.duplicate),
+    redirect: readRedirect(raw.redirect),
     manageUrlInjection:
       raw.manageUrlInjection === "auto_inject" ||
       raw.manageUrlInjection === "template_opt_in"
         ? raw.manageUrlInjection
         : defaults.manageUrlInjection,
-    salesforceSync: salesforceSync as CalendarSettings["salesforceSync"],
-    triggerOffsets: Array.isArray(raw.triggerOffsets)
-      ? (raw.triggerOffsets as CalendarSettings["triggerOffsets"])
-      : defaults.triggerOffsets,
+    salesforceSync: readSalesforceSync(raw.salesforceSync),
+    triggerOffsets: readTriggerOffsets(raw.triggerOffsets),
   };
 }
 

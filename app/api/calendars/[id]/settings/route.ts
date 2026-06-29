@@ -5,7 +5,7 @@ import {
   requireSchedulerId,
 } from "@/components/calendar-admin/require-scheduler";
 import { getDb } from "@/lib/db/client";
-import { calendarSettings, calendars } from "@/lib/db/schema";
+import { calendarSettings, calendars, teams } from "@/lib/db/schema";
 import {
   clientCalendarSettings,
   mergeCalendarSettings,
@@ -74,6 +74,19 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     body = (await request.json()) as Partial<CalendarSettings>;
   } catch {
     return jsonError("Invalid JSON body", 400);
+  }
+
+  // Referential integrity: defaultTeamId must point at a team on this calendar.
+  const defaultTeamId = body.scheduling?.defaultTeamId;
+  if (typeof defaultTeamId === "string" && defaultTeamId !== "") {
+    const [team] = await getDb()
+      .select({ id: teams.id })
+      .from(teams)
+      .where(and(eq(teams.id, defaultTeamId), eq(teams.calendarId, calendarId)))
+      .limit(1);
+    if (!team) {
+      return jsonError("defaultTeamId does not reference a team on this calendar", 400);
+    }
   }
 
   const [existing] = await getDb()

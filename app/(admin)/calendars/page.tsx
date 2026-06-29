@@ -6,7 +6,7 @@ import { getDb } from "@/lib/db/client";
 import { toCalendar } from "@/lib/db/mappers";
 import { calendarMembers, calendars, meetings } from "@/lib/db/schema";
 import { cn } from "@/lib/ui/cn";
-import { and, count, desc, eq, gte, inArray } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNull } from "drizzle-orm";
 import { Calendar, CalendarDays, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -49,6 +49,7 @@ export default async function CalendarsListPage() {
         and(
           inArray(meetings.calendarId, calendarIds),
           gte(meetings.startsAt, nowIso),
+          isNull(meetings.cancelledAt),
         ),
       )
       .groupBy(meetings.calendarId);

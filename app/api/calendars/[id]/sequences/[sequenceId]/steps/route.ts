@@ -6,8 +6,10 @@ import {
 } from "@/components/calendar-admin/require-scheduler";
 import {
   createSequenceStep,
+  getSequence,
   listSequenceSteps,
   replaceSequenceSteps,
+  SequenceValidationError,
   type CreateStepInput,
 } from "@/lib/email/sequences";
 import { getDb } from "@/lib/db/client";
@@ -134,6 +136,13 @@ export async function PUT(request: Request, { params }: RouteParams) {
     return jsonError("steps must be an array", 400);
   }
 
+  // BUG-052: verify sequence ownership before validating step bodies, so an
+  // unknown/foreign sequence returns 404 instead of 400.
+  const sequence = await getSequence(calendarId, sequenceId);
+  if (!sequence) {
+    return jsonError("Sequence not found", 404);
+  }
+
   for (const step of body.steps) {
     const validationError = validateStepInput(step);
     if (validationError) {
@@ -141,7 +150,15 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
   }
 
-  const steps = await replaceSequenceSteps(calendarId, sequenceId, body.steps);
+  let steps: Awaited<ReturnType<typeof replaceSequenceSteps>>;
+  try {
+    steps = await replaceSequenceSteps(calendarId, sequenceId, body.steps);
+  } catch (error) {
+    if (error instanceof SequenceValidationError) {
+      return jsonError(error.message, 400);
+    }
+    throw error;
+  }
   if (!steps) {
     return jsonError("Sequence not found", 404);
   }

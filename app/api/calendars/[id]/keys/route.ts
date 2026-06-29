@@ -59,10 +59,11 @@ export async function POST(request: Request, { params }: RouteParams) {
     return jsonError("Invalid JSON body", 400);
   }
 
-  if (!body.name || typeof body.name !== "string") {
+  const name = typeof body.name === "string" ? body.name.trim() : "";
+  if (!name) {
     return jsonError("name is required", 400);
   }
 
-  const key = await createApiKey(calendarId, body.name.trim(), auth.schedulerId);
+  const key = await createApiKey(calendarId, name, auth.schedulerId);
   return NextResponse.json({ key }, { status: 201 });
 }

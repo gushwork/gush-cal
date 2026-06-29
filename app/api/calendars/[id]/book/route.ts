@@ -29,6 +29,21 @@ export async function POST(request: Request, { params }: RouteParams) {
     return jsonError("Invalid JSON body", 400);
   }
 
+  if (
+    typeof body.startsAt !== "string" ||
+    Number.isNaN(new Date(body.startsAt).getTime())
+  ) {
+    return jsonError("startsAt must be a valid ISO timestamp", 400);
+  }
+
+  if (typeof body.subject !== "string" || body.subject.trim() === "") {
+    return jsonError("subject is required", 400);
+  }
+
+  if (typeof body.viewerTimezone !== "string" || body.viewerTimezone.trim() === "") {
+    return jsonError("viewerTimezone is required", 400);
+  }
+
   if (!bundle.durations.includes(body.durationMinutes)) {
     return jsonError("Duration not allowed for this calendar", 400);
   }

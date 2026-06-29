@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "crypto";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { salesforceConnections } from "@/lib/db/schema";
@@ -38,7 +39,7 @@ export async function getConnectionStatus(
   };
 }
 
-/** Tokens stored as-is; protect DB access (no ENCRYPTION_KEY pattern in repo yet). */
+// ponytail: BUG-033 tokens stored plaintext; add column-level encryption (AUTH_SECRET-derived AES) if creds-at-rest becomes a requirement.
 export async function saveConnection(
   calendarId: string,
   input: SaveConnectionInput,
@@ -88,6 +89,26 @@ export function buildOAuthAuthorizeUrl(calendarId: string, state: string): strin
   });
   const loginHost = process.env.SALESFORCE_LOGIN_URL ?? "https://login.salesforce.com";
   return `${loginHost}/services/oauth2/authorize?${params.toString()}`;
+}
+
+/**
+ * Stateless OAuth `state`: HMAC(AUTH_SECRET, calendarId). No DB/cookie needed —
+ * attacker can't forge a valid state for a calendar without the secret, which
+ * blocks OAuth CSRF (binding a foreign SF org to a victim Calendar).
+ */
+export function signOAuthState(calendarId: string): string {
+  return createHmac("sha256", process.env.AUTH_SECRET ?? "")
+    .update(calendarId)
+    .digest("hex");
+}
+
+export function verifyOAuthState(calendarId: string, state: string | null): boolean {
+  if (!state) {
+    return false;
+  }
+  const expected = Buffer.from(signOAuthState(calendarId));
+  const got = Buffer.from(state);
+  return expected.length === got.length && timingSafeEqual(expected, got);
 }
 
 export function getOAuthCallbackUrl(calendarId: string): string {

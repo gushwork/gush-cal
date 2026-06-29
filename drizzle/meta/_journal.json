@@ -50,6 +50,13 @@
       "when": 1780693800000,
       "tag": "0007_member_assignment_weight",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1782599589706,
+      "tag": "0008_webhook_enabled_meeting_slot_unique",
+      "breakpoints": true
     }
   ]
 }

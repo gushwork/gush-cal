@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SalesforceFieldMap } from "@/lib/types/platform";
-import { applyFieldMappings, listFieldMaps, seedDefaultFieldMaps } from "./field-map";
+import {
+  applyFieldMappings,
+  listFieldMaps,
+  seedDefaultFieldMaps,
+  validateFieldMapInput,
+} from "./field-map";
+import { signOAuthState, verifyOAuthState } from "./connections";
 import { createSalesforcePort, setSalesforceDepsForTest } from "./index";
 import { LOOKUP_TIMEOUT_MS } from "./lookup-owner";
 
@@ -339,6 +345,54 @@ describe("Salesforce adapter", () => {
         Meeting_Time__c: "2026-07-01T15:00:00.000Z",
         Status__c: "Booked",
       });
+    });
+  });
+
+  describe("validateFieldMapInput (BUG-031)", () => {
+    const full = {
+      eventType: "book" as const,
+      objectApiName: "Lead",
+      fieldMappings: [
+        { source: "guestEmail" as const, targetFieldApiName: "Email" },
+      ],
+    };
+
+    it("accepts a valid full (POST) body", () => {
+      expect(validateFieldMapInput(full, false)).toBeNull();
+    });
+
+    it("rejects a bad eventType on full and partial", () => {
+      const bad = { ...full, eventType: "garbage" as never };
+      expect(validateFieldMapInput(bad, false)).toMatch(/eventType/);
+      expect(validateFieldMapInput({ eventType: "garbage" as never }, true)).toMatch(
+        /eventType/,
+      );
+    });
+
+    it("requires fields on POST but skips absent fields on PATCH", () => {
+      expect(validateFieldMapInput({ eventType: "book" }, false)).toMatch(
+        /objectApiName/,
+      );
+      expect(validateFieldMapInput({ objectApiName: "Lead" }, true)).toBeNull();
+    });
+
+    it("rejects empty objectApiName / fieldMappings when supplied", () => {
+      expect(validateFieldMapInput({ objectApiName: "  " }, true)).toMatch(
+        /objectApiName/,
+      );
+      expect(validateFieldMapInput({ fieldMappings: [] }, true)).toMatch(
+        /fieldMappings/,
+      );
+    });
+  });
+
+  describe("OAuth state signing (BUG-029)", () => {
+    it("verifies a freshly signed state and rejects forged/missing", () => {
+      const state = signOAuthState("cal-1");
+      expect(verifyOAuthState("cal-1", state)).toBe(true);
+      expect(verifyOAuthState("cal-1", "forged")).toBe(false);
+      expect(verifyOAuthState("cal-1", null)).toBe(false);
+      expect(verifyOAuthState("cal-2", state)).toBe(false);
     });
   });
 

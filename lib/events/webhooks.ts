@@ -10,6 +10,7 @@ export type WebhookEndpoint = {
   calendarId: string;
   url: string;
   enabledEvents: AppEventType[];
+  enabled: boolean;
 };
 
 type WebhookEndpointRow = typeof webhookEndpointsTable.$inferSelect;
@@ -22,7 +23,47 @@ export type CreateWebhookInput = {
 export type UpdateWebhookInput = {
   url?: string;
   enabledEvents?: AppEventType[];
+  enabled?: boolean;
 };
+
+// SSRF guard: block non-http(s) schemes and private/loopback/link-local hosts.
+// Note: does not defend against DNS-rebinding (public name → private IP); for
+// that, resolve + re-check at fetch time. Static host validation is the baseline.
+const BLOCKED_WEBHOOK_HOSTS: RegExp[] = [
+  /^localhost$/i,
+  /\.localhost$/i,
+  /^0\./,
+  /^127\./,
+  /^10\./,
+  /^192\.168\./,
+  /^172\.(1[6-9]|2\d|3[01])\./,
+  /^169\.254\./, // link-local incl. cloud metadata 169.254.169.254
+  /^::1$/,
+  /^::$/,
+  /^fc/i,
+  /^fd/i,
+  /^fe80:/i,
+];
+
+export function validateWebhookUrl(raw: unknown): string | null {
+  if (typeof raw !== "string" || raw.trim() === "") {
+    return "url is required";
+  }
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return "url must be a valid absolute URL";
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    return "url must use http or https";
+  }
+  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (BLOCKED_WEBHOOK_HOSTS.some((re) => re.test(host))) {
+    return "url host is not allowed (private, loopback, or link-local address)";
+  }
+  return null;
+}
 
 function generateWebhookSecret(): string {
   return randomBytes(32).toString("base64url");
@@ -34,6 +75,7 @@ function toWebhookEndpoint(row: WebhookEndpointRow): WebhookEndpoint {
     calendarId: row.calendarId,
     url: row.url,
     enabledEvents: row.enabledEvents as AppEventType[],
+    enabled: row.enabled,
   };
 }
 
@@ -80,6 +122,7 @@ export async function updateWebhookEndpoint(
     .set({
       ...(input.url != null ? { url: input.url } : {}),
       ...(input.enabledEvents != null ? { enabledEvents: input.enabledEvents } : {}),
+      ...(input.enabled != null ? { enabled: input.enabled } : {}),
     })
     .where(
       and(

@@ -9,6 +9,7 @@ import { calendars } from "@/lib/db/schema";
 import {
   deleteWebhookEndpoint,
   updateWebhookEndpoint,
+  validateWebhookUrl,
   type UpdateWebhookInput,
 } from "@/lib/events/webhooks";
 import type { AppEventType } from "@/lib/types/platform";
@@ -77,7 +78,22 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     return jsonError("enabledEvents must be a non-empty array of event types", 400);
   }
 
-  const endpoint = await updateWebhookEndpoint(calendarId, endpointId, body);
+  if (body.url != null) {
+    const urlError = validateWebhookUrl(body.url);
+    if (urlError) {
+      return jsonError(urlError, 400);
+    }
+  }
+
+  if (body.enabled != null && typeof body.enabled !== "boolean") {
+    return jsonError("enabled must be a boolean", 400);
+  }
+
+  const endpoint = await updateWebhookEndpoint(calendarId, endpointId, {
+    url: body.url,
+    enabledEvents: body.enabledEvents,
+    enabled: body.enabled,
+  });
   if (!endpoint) {
     return jsonError("Webhook endpoint not found", 404);
   }

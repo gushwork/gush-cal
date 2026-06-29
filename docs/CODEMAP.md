@@ -31,7 +31,10 @@ Agent-facing guide to find code quickly. Read `CONTEXT.md` first for domain lang
 - `schedulers`: signed-in recruiters/operators keyed by Google OAuth subject.
 - `calendars`: app scheduling configuration owned by a Scheduler. Includes slug, durations, caps, working hours, booking window, minimum notice, and timezone.
 - `calendarMembers`: Members on a Calendar. Includes email, display name, optional cap overrides, optional working-hours override, optional timezone, and sort order.
-- `meetings`: booked occurrences. Includes assigned Member, startsAt, duration, invitees, Google event id, Meet link, bookedBy, and guestEmail.
+- `meetings`: booked occurrences. Includes assigned Member, startsAt, duration, invitees, Google event id, Meet link, bookedBy, and guestEmail. A partial unique index `meetings_member_active_slot_idx` on `(assigned_member_id, starts_at) WHERE cancelled_at IS NULL` backstops double-booking (confirm-booking maps the unique violation to `SLOT_UNAVAILABLE`).
+- `webhookEndpoints`: per-Calendar webhook targets. Includes url, secret, enabledEvents, and `enabled` (enable/disable toggle). Webhook URLs are SSRF-validated (no private/loopback/link-local hosts) on write and before delivery.
+
+Latest migration: `drizzle/0008_webhook_enabled_meeting_slot_unique.sql` (adds `webhook_endpoints.enabled` and the meetings active-slot unique index).
 
 When changing schema:
 

@@ -27,6 +27,8 @@ async function getOwnedCalendar(calendarId: string, schedulerId: string) {
 
 function teamErrorResponse(code: string) {
   switch (code) {
+    case "NOT_FOUND":
+      return jsonError("Team not found", 404);
     case "INVALID_SLUG":
       return jsonError("Invalid team slug", 400);
     case "INVALID_MEMBERS":

@@ -61,6 +61,8 @@ export async function cancelMeetingByToken(
     };
   }
 
+  // ponytail: BUG-021 guest cancel is soft (set cancelledAt); admin cancel is
+  // hard delete. Intentional — guest self-service keeps an auditable row.
   const now = new Date().toISOString();
   await getDb()
     .update(meetings)

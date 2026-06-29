@@ -43,7 +43,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     return jsonError("Team not found", 404);
   }
 
-  const memberIds = await getTeamMemberIds(teamId);
+  const memberIds = await getTeamMemberIds(teamId, calendarId);
   return NextResponse.json({ memberIds });
 }
 

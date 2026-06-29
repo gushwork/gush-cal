@@ -6,6 +6,7 @@ import { defaultCalendarSettings } from "@/lib/types/platform";
 import { loadCalendarSchedulingSettings } from "@/lib/scheduling/load-scheduling-settings";
 import { advanceAssignmentState } from "@/lib/booking/advance-assignment-state";
 import { violatesMinNotice } from "@/lib/slots/validate-min-notice";
+import { clearSlotsCacheForCalendar } from "./slots-cache";
 import type {
   BookedBy,
   BookingTarget,
@@ -188,6 +189,7 @@ export async function confirmBooking(
       .returning();
 
     const meeting = toMeeting(row);
+    clearSlotsCacheForCalendar(bundle.id);
 
     if (!memberId) {
       await advanceAssignmentState({
@@ -227,11 +229,29 @@ export async function confirmBooking(
       ...(duplicateWarning ? { duplicateWarning } : {}),
     };
   } catch (error) {
-    console.error(
-      "Orphan Google event after DB insert failure:",
-      googleResult.googleEventId,
-      error,
-    );
+    // Roll back the Google event we just created so it is never orphaned.
+    try {
+      await deps.google.deleteEvent(
+        bundle.scheduler.email,
+        googleResult.googleEventId,
+      );
+    } catch {
+      console.error(
+        "Failed to clean up Google event after DB insert failure:",
+        googleResult.googleEventId,
+      );
+    }
+
+    // The partial unique index (member + startsAt where not cancelled) makes a
+    // concurrent double-book surface as a unique violation → treat as taken.
+    const code =
+      error && typeof error === "object"
+        ? (error as { code?: string }).code
+        : undefined;
+    if (code === "23505") {
+      return { ok: false, code: "SLOT_UNAVAILABLE" };
+    }
+
     throw error;
   }
 }

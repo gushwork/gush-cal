@@ -17,6 +17,42 @@ export type CreateFieldMapInput = {
 
 export type UpdateFieldMapInput = Partial<CreateFieldMapInput>;
 
+const SALESFORCE_EVENT_TYPES: SalesforceEventType[] = [
+  "book",
+  "cancel",
+  "reschedule",
+  "reassign",
+];
+
+/**
+ * Shared field-map validation for POST (full) and PATCH (partial).
+ * Returns an error message, or null when valid. PATCH only checks supplied keys.
+ */
+export function validateFieldMapInput(
+  input: Partial<CreateFieldMapInput>,
+  partial: boolean,
+): string | null {
+  if (
+    (!partial || input.eventType !== undefined) &&
+    !SALESFORCE_EVENT_TYPES.includes(input.eventType as SalesforceEventType)
+  ) {
+    return "eventType must be book, cancel, reschedule, or reassign";
+  }
+  if (
+    (!partial || input.objectApiName !== undefined) &&
+    (typeof input.objectApiName !== "string" || input.objectApiName.trim() === "")
+  ) {
+    return "objectApiName is required";
+  }
+  if (
+    (!partial || input.fieldMappings !== undefined) &&
+    (!Array.isArray(input.fieldMappings) || input.fieldMappings.length === 0)
+  ) {
+    return "fieldMappings is required";
+  }
+  return null;
+}
+
 function toFieldMap(row: typeof salesforceFieldMaps.$inferSelect): SalesforceFieldMap {
   return {
     id: row.id,

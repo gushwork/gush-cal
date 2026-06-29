@@ -1,5 +1,8 @@
 /** Returns true when email belongs to the allowed Workspace domain. */
 export function isAllowedEmail(email: string, allowedDomain: string): boolean {
+  if (typeof email !== "string") {
+    return false;
+  }
   const normalizedDomain = allowedDomain.toLowerCase().replace(/^@/, "");
   const atIndex = email.lastIndexOf("@");
   if (atIndex === -1) {

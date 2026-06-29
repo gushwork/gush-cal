@@ -14,6 +14,12 @@ describe("isAllowedEmail", () => {
     expect(isAllowedEmail("not-an-email", "acme.com")).toBe(false);
   });
 
+  it("rejects non-string email without throwing", () => {
+    expect(isAllowedEmail(undefined as unknown as string, "acme.com")).toBe(
+      false,
+    );
+  });
+
   it("normalizes domain with leading @", () => {
     expect(isAllowedEmail("recruiter@acme.com", "@acme.com")).toBe(true);
   });

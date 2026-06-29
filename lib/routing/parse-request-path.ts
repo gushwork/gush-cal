@@ -28,7 +28,9 @@ export function parseResolveQuery(
   searchParams: URLSearchParams,
 ): { urlContext: BookingUrlContext; guestEmail?: string } {
   const teamSlug = searchParams.get("team") ?? undefined;
-  const memberSlug = searchParams.get("memberSlug") ?? undefined;
+  // BUG-038: accept `?member=` as an alias for `?memberSlug=`.
+  const memberSlug =
+    searchParams.get("memberSlug") ?? searchParams.get("member") ?? undefined;
   const email = searchParams.get("email") ?? undefined;
 
   return {

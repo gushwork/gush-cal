@@ -4,7 +4,6 @@ import { getDb } from "@/lib/db/client";
 import { loadCalendarBundleByCalendarId } from "@/lib/db/assemble-calendar-bundle";
 import { meetings } from "@/lib/db/schema";
 import { loadCalendarSchedulingSettings } from "@/lib/scheduling/load-scheduling-settings";
-import { formatGoogleErrorMessage } from "@/lib/google/google-errors";
 import type { Meeting } from "@/lib/types";
 import { loadMeetingForScheduler } from "./cancel-meeting";
 import { clearSlotsCacheForCalendar } from "./slots-cache";
@@ -80,6 +79,13 @@ export async function reassignMeeting(
     return { ok: false, code: "PAST" };
   }
 
+  // BUG-046: same-member reassign is a no-op — skip Google churn, token
+  // rotation, and email. Also avoids eligibility seeing the member's own
+  // existing event as busy (false 409).
+  if (input.newMemberId === meeting.assignedMemberId) {
+    return { ok: true, meeting };
+  }
+
   const bundle = await loadCalendarBundleByCalendarId(
     getDb(),
     meeting.calendarId,
@@ -104,25 +110,13 @@ export async function reassignMeeting(
     return { ok: false, code: "MEMBER_INELIGIBLE" };
   }
 
-  try {
-    await deps.google.deleteEvent(organizerEmail, meeting.googleEventId);
-  } catch (error) {
-    console.error("[reassignMeeting] Google delete failed", {
-      meetingId: meeting.id,
-      error,
-    });
-    return {
-      ok: false,
-      code: "GOOGLE_ERROR",
-      message: formatGoogleErrorMessage(error),
-    };
-  }
-
   const attendeeEmails = buildAttendeeEmails(
     assignment.member.email,
     meeting,
   );
 
+  // BUG-045: create new event FIRST; on failure the old event + DB row stay
+  // intact (do not delete the old event before the DB points at the new one).
   const googleResult = await deps.google.createMeetingEvent({
     organizerEmail,
     startsAt: meeting.startsAt,
@@ -145,6 +139,17 @@ export async function reassignMeeting(
       meetLink: googleResult.meetLink,
     })
     .where(eq(meetings.id, meeting.id));
+
+  // Old event delete is best-effort: DB already points at the new event.
+  try {
+    await deps.google.deleteEvent(organizerEmail, meeting.googleEventId);
+  } catch (error) {
+    console.error("[reassignMeeting] stale event delete failed", {
+      meetingId: meeting.id,
+      googleEventId: meeting.googleEventId,
+      error,
+    });
+  }
 
   const updatedMeeting: Meeting = {
     ...meeting,

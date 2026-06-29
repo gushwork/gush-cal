@@ -57,8 +57,9 @@ export default async function CalendarOverviewPage({
 
   const now = Date.now();
   const upcomingMeetingCount =
-    allMeetings?.filter((m) => new Date(m.startsAt).getTime() >= now).length ??
-    0;
+    allMeetings?.filter(
+      (m) => m.cancelledAt === null && new Date(m.startsAt).getTime() >= now,
+    ).length ?? 0;
 
   return (
     <CalendarStats

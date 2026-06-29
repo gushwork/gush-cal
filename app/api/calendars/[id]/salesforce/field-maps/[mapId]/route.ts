@@ -7,6 +7,7 @@ import {
 import {
   deleteFieldMap,
   updateFieldMap,
+  validateFieldMapInput,
   type UpdateFieldMapInput,
 } from "@/lib/salesforce/field-map";
 import { getDb } from "@/lib/db/client";
@@ -45,6 +46,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     body = (await request.json()) as UpdateFieldMapInput;
   } catch {
     return jsonError("Invalid JSON body", 400);
+  }
+
+  const validationError = validateFieldMapInput(body, true);
+  if (validationError) {
+    return jsonError(validationError, 400);
   }
 
   const fieldMap = await updateFieldMap(calendarId, mapId, body);

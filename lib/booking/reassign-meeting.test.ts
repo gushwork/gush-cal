@@ -282,7 +282,31 @@ describe("reassignMeeting", () => {
     expect(result).toEqual({ ok: false, code: "PAST" });
   });
 
-  it("returns GOOGLE_ERROR when calendar patch fails", async () => {
+  it("returns GOOGLE_ERROR when creating the new event fails, leaving old event + DB intact", async () => {
+    mockSchedulerMeeting();
+
+    const deps = createMockDeps();
+    deps.google.createMeetingEvent = vi
+      .fn()
+      .mockResolvedValue({ ok: false, code: "calendar_error" });
+
+    const result = await reassignMeeting(deps, {
+      meetingId: "meet-1",
+      schedulerId: "sched-1",
+      newMemberId: "m-2",
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.code).toBe("GOOGLE_ERROR");
+    // BUG-045: old event must NOT be deleted and DB untouched on create failure.
+    expect(deps.google.deleteEvent).not.toHaveBeenCalled();
+    expect(mockUpdateSet).not.toHaveBeenCalled();
+  });
+
+  it("treats old-event delete as best-effort (succeeds even if delete fails)", async () => {
     mockSchedulerMeeting();
 
     const deps = createMockDeps();
@@ -296,12 +320,39 @@ describe("reassignMeeting", () => {
       newMemberId: "m-2",
     });
 
-    expect(result.ok).toBe(false);
-    if (result.ok) {
+    expect(result.ok).toBe(true);
+    expect(deps.google.createMeetingEvent).toHaveBeenCalled();
+    expect(mockUpdateSet).toHaveBeenCalled();
+    expect(deps.google.deleteEvent).toHaveBeenCalledWith(
+      "scheduler@acme.com",
+      "evt-123",
+    );
+  });
+
+  it("BUG-046: same-member reassign is a no-op (no Google churn, no token rotation)", async () => {
+    mockSchedulerMeeting();
+
+    const deps = createMockDeps();
+    const emailSpy = vi.spyOn(deps.email, "enqueueSequenceForMeeting");
+
+    const result = await reassignMeeting(deps, {
+      meetingId: "meet-1",
+      schedulerId: "sched-1",
+      newMemberId: "m-1",
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
       return;
     }
-    expect(result.code).toBe("GOOGLE_ERROR");
-    expect(result.message).toContain("Insufficient Permission");
+    expect(result.meeting.assignedMemberId).toBe("m-1");
+    expect(deps.slots.assignMember).not.toHaveBeenCalled();
+    expect(deps.google.createMeetingEvent).not.toHaveBeenCalled();
+    expect(deps.google.deleteEvent).not.toHaveBeenCalled();
+    expect(mockUpdateSet).not.toHaveBeenCalled();
+    expect(deps.manageToken.revokeForMeeting).not.toHaveBeenCalled();
+    expect(deps.manageToken.createForMeeting).not.toHaveBeenCalled();
+    expect(emailSpy).not.toHaveBeenCalled();
   });
 
   it("emits meeting.reassigned and syncs salesforce on success", async () => {

@@ -45,6 +45,8 @@ Show/no-show attendance and showup-weighted round robin are **out of scope** for
 - Scheduler/admin booking uses `bookingPolicy: "admin"` and can book sooner than minimum notice.
 - Slot display and assignment must both go through the slot engine eligibility rules: working hours, FreeBusy, caps, and existing Meetings.
 - Google Calendar access is via domain-wide delegation; Scheduler OAuth is identity only.
+- A Member cannot hold two active Meetings at the same instant: a partial unique index enforces this and `confirmBooking` surfaces the conflict as `SLOT_UNAVAILABLE`. Cancelled Meetings (`cancelledAt` set) free the slot and are excluded from "upcoming" counts.
+- A Calendar API key authorizes only its own Calendar; meeting operations must verify the target Meeting belongs to that Calendar (no cross-Calendar access).
 
 ## Legacy Terms
 

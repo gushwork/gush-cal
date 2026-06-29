@@ -47,6 +47,21 @@ export async function POST(request: Request) {
     return jsonError("Invalid JSON body", 400);
   }
 
+  if (typeof body.name !== "string" || body.name.trim() === "") {
+    return jsonError("Name is required", 400);
+  }
+
+  const positiveIntFields: [string, unknown][] = [
+    ["bookingWindowDays", body.bookingWindowDays],
+    ["defaultMaxPerDay", body.defaultMaxPerDay],
+    ["defaultMaxPerWeek", body.defaultMaxPerWeek],
+  ];
+  for (const [field, value] of positiveIntFields) {
+    if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
+      return jsonError(`${field} must be a positive integer`, 400);
+    }
+  }
+
   const durationError = validateDurations(body.durations ?? []);
   if (durationError) {
     return jsonError(durationError, 400);

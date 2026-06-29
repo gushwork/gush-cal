@@ -86,7 +86,11 @@ function createDbMock(handlers: {
   const from = vi.fn(() => ({ where }));
   const select = vi.fn(() => ({ from }));
 
-  mockGetDb.mockReturnValue({ select, insert, update, delete: del });
+  const dbObj = { select, insert, update, delete: del };
+  const transaction = vi.fn((fn: (tx: typeof dbObj) => unknown) =>
+    Promise.resolve(fn(dbObj)),
+  );
+  mockGetDb.mockReturnValue({ ...dbObj, transaction });
 
   return { insertReturning, updateReturning, deleteReturning };
 }
@@ -200,7 +204,12 @@ describe("booking link CRUD", () => {
 
   it("creates a link", async () => {
     createDbMock({
-      selectResults: [[], [{ slug: calendarSlug }]],
+      // existingSlugs, member lookup (BUG-015 scope check), calendar slug
+      selectResults: [
+        [],
+        [{ email: "jane@acme.com", displayName: "Jane Doe" }],
+        [{ slug: calendarSlug }],
+      ],
       insertReturning: [memberLinkRow],
     });
 
@@ -218,9 +227,43 @@ describe("booking link CRUD", () => {
     });
   });
 
+  it("forces a team link slug to the team slug (BUG-014)", async () => {
+    createDbMock({
+      // existingSlugs, team lookup (slug source + BUG-015 scope check), cal slug
+      selectResults: [[], [{ slug: "enterprise" }], [{ slug: calendarSlug }]],
+      insertReturning: [teamLinkRow],
+    });
+
+    const link = await createBookingLink(calendarId, {
+      kind: "team",
+      teamId: "team-1",
+      slug: "mismatched-slug",
+    });
+
+    expect(link.slug).toBe("enterprise");
+    expect(link.publicUrl).toBe("/book/acme/t/enterprise");
+  });
+
+  it("rejects a member from another calendar (BUG-015)", async () => {
+    createDbMock({
+      selectResults: [[], []],
+    });
+
+    await expect(
+      createBookingLink(calendarId, {
+        kind: "member",
+        slug: "stranger",
+        memberId: "mem-other",
+      }),
+    ).rejects.toThrow(/not found/i);
+  });
+
   it("rejects duplicate slug on create", async () => {
     createDbMock({
-      selectResults: [[{ slug: "jane-doe" }]],
+      selectResults: [
+        [{ slug: "jane-doe" }],
+        [{ email: "jane@acme.com", displayName: "Jane Doe" }],
+      ],
     });
 
     await expect(
@@ -234,7 +277,10 @@ describe("booking link CRUD", () => {
 
   it("updates a link", async () => {
     createDbMock({
-      selectResults: [[{ slug: calendarSlug }]],
+      selectResults: [
+        [{ slug: "jane-doe", kind: "member", teamId: null }],
+        [{ slug: calendarSlug }],
+      ],
       updateReturning: [{ ...memberLinkRow, enabled: false }],
     });
 
@@ -242,6 +288,40 @@ describe("booking link CRUD", () => {
       enabled: false,
     });
     expect(link?.enabled).toBe(false);
+  });
+
+  it("rejects a slug change colliding with a team (BUG-016b)", async () => {
+    createDbMock({
+      // current link, booking-link conflict (none), team conflict (other team)
+      selectResults: [
+        [{ slug: "enterprise", kind: "team", teamId: "team-1" }],
+        [],
+        [{ id: "team-2" }],
+      ],
+    });
+
+    await expect(
+      updateBookingLink(calendarId, "link-2", { slug: "taken-by-team" }),
+    ).rejects.toThrow(/taken/i);
+  });
+
+  it("syncs the team slug when a team link slug changes (BUG-002)", async () => {
+    createDbMock({
+      // current link, booking-link conflict (none), team conflict (none), cal slug
+      selectResults: [
+        [{ slug: "enterprise", kind: "team", teamId: "team-1" }],
+        [],
+        [],
+        [{ slug: calendarSlug }],
+      ],
+      updateReturning: [{ ...teamLinkRow, slug: "new-enterprise" }],
+    });
+
+    const link = await updateBookingLink(calendarId, "link-2", {
+      slug: "new-enterprise",
+    });
+    expect(link?.slug).toBe("new-enterprise");
+    expect(link?.publicUrl).toBe("/book/acme/t/new-enterprise");
   });
 
   it("deletes a link", async () => {

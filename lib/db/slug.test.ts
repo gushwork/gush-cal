@@ -11,6 +11,12 @@ describe("generateCalendarSlug", () => {
     expect(slug.length).toBeGreaterThanOrEqual(16);
     expect(slug).toMatch(/^[A-Za-z0-9_-]+$/);
   });
+
+  it("generates slugs that pass validateCalendarSlug", () => {
+    for (let i = 0; i < 50; i++) {
+      expect(validateCalendarSlug(generateCalendarSlug())).toBeNull();
+    }
+  });
 });
 
 describe("normalizeCalendarSlug", () => {

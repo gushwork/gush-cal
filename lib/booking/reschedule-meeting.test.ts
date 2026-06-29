@@ -309,6 +309,50 @@ describe("rescheduleMeeting", () => {
     expect(result).toEqual({ ok: false, code: "SLOT_UNAVAILABLE" });
   });
 
+  it("BUG-020: create failure leaves old event + DB intact, returns GOOGLE_ERROR", async () => {
+    mockMeetingContext();
+
+    const deps = createMockDeps();
+    deps.google.createMeetingEvent = vi
+      .fn()
+      .mockResolvedValue({ ok: false, code: "calendar_error" });
+
+    const result = await rescheduleMeeting(deps, {
+      meetingId: "meet-1",
+      startsAt: NEW_START,
+      durationMinutes: 30,
+      viewerTimezone: "UTC",
+    });
+
+    expect(result).toEqual({ ok: false, code: "GOOGLE_ERROR" });
+    expect(deps.google.deleteEvent).not.toHaveBeenCalled();
+    expect(mockUpdateSet).not.toHaveBeenCalled();
+  });
+
+  it("BUG-020: old event delete is best-effort (reschedule still succeeds)", async () => {
+    mockMeetingContext();
+
+    const deps = createMockDeps();
+    deps.google.deleteEvent = vi
+      .fn()
+      .mockRejectedValue(new Error("Insufficient Permission"));
+
+    const result = await rescheduleMeeting(deps, {
+      meetingId: "meet-1",
+      startsAt: NEW_START,
+      durationMinutes: 30,
+      viewerTimezone: "UTC",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(deps.google.createMeetingEvent).toHaveBeenCalled();
+    expect(mockUpdateSet).toHaveBeenCalled();
+    expect(deps.google.deleteEvent).toHaveBeenCalledWith(
+      "scheduler@acme.com",
+      "evt-123",
+    );
+  });
+
   it("emits meeting.rescheduled and syncs salesforce on success", async () => {
     mockMeetingContext();
 

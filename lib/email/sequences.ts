@@ -20,6 +20,26 @@ import { createManageTokenStub } from "@/lib/stubs/manage-token-stub";
 
 export const EMAIL_STEP_TRIGGER_TYPE = "email.step";
 
+const APP_EVENT_TYPES = new Set<AppEventType>([
+  "meeting.booked",
+  "meeting.cancelled",
+  "meeting.rescheduled",
+  "meeting.reassigned",
+  "meeting.before",
+  "meeting.after",
+  "salesforce.sync_succeeded",
+  "salesforce.sync_failed",
+  "booking.duplicate_blocked",
+  "routing.owner_overflow",
+]);
+
+export function isAppEventType(value: unknown): value is AppEventType {
+  return typeof value === "string" && APP_EVENT_TYPES.has(value as AppEventType);
+}
+
+/** Bad request from sequence input; routes map this to a 400. */
+export class SequenceValidationError extends Error {}
+
 export type MeetingSequenceTrigger =
   | "meeting.booked"
   | "meeting.cancelled"
@@ -182,13 +202,20 @@ export async function updateSequence(
   sequenceId: string,
   input: UpdateSequenceInput,
 ): Promise<EmailSequence | null> {
+  const patch = {
+    ...(input.name != null ? { name: input.name } : {}),
+    ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
+    ...(input.triggerEvent != null ? { triggerEvent: input.triggerEvent } : {}),
+  };
+
+  // BUG-054: empty .set({}) errors in postgres — no-op returns current row.
+  if (Object.keys(patch).length === 0) {
+    return getSequence(calendarId, sequenceId);
+  }
+
   const [row] = await db()
     .update(emailSequences)
-    .set({
-      ...(input.name != null ? { name: input.name } : {}),
-      ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
-      ...(input.triggerEvent != null ? { triggerEvent: input.triggerEvent } : {}),
-    })
+    .set(patch)
     .where(
       and(
         eq(emailSequences.id, sequenceId),
@@ -330,30 +357,40 @@ export async function replaceSequenceSteps(
     return null;
   }
 
-  await db()
-    .delete(emailSequenceSteps)
-    .where(eq(emailSequenceSteps.sequenceId, sequenceId));
-
-  if (steps.length === 0) {
-    return [];
+  // BUG-053: stepOrder must be distinct across the replace payload.
+  const orders = steps.map((step) => step.order);
+  if (new Set(orders).size !== orders.length) {
+    throw new SequenceValidationError("stepOrder values must be distinct");
   }
 
-  const rows = await db()
-    .insert(emailSequenceSteps)
-    .values(
-      steps.map((step) => ({
-        sequenceId,
-        stepOrder: step.order,
-        delayMinutes: step.delayMinutes,
-        timingAnchor: step.timingAnchor ?? "after_booking",
-        action: step.action,
-        subjectTemplate: step.subjectTemplate ?? null,
-        bodyTemplate: step.bodyTemplate ?? null,
-      })),
-    )
-    .returning();
+  // BUG-028: delete + insert in one transaction so a failed insert rolls
+  // back the delete (existing steps survive instead of being wiped).
+  return db().transaction(async (tx) => {
+    await tx
+      .delete(emailSequenceSteps)
+      .where(eq(emailSequenceSteps.sequenceId, sequenceId));
 
-  return rows.map(toStep);
+    if (steps.length === 0) {
+      return [];
+    }
+
+    const rows = await tx
+      .insert(emailSequenceSteps)
+      .values(
+        steps.map((step) => ({
+          sequenceId,
+          stepOrder: step.order,
+          delayMinutes: step.delayMinutes,
+          timingAnchor: step.timingAnchor ?? "after_booking",
+          action: step.action,
+          subjectTemplate: step.subjectTemplate ?? null,
+          bodyTemplate: step.bodyTemplate ?? null,
+        })),
+      )
+      .returning();
+
+    return rows.map(toStep);
+  });
 }
 
 export async function renderManageUrl(meetingId: string): Promise<string> {

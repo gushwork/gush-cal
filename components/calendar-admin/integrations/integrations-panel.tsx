@@ -536,6 +536,25 @@ export function IntegrationsPanel({
     await loadAll();
   }
 
+  async function toggleWebhookEnabled(hook: WebhookEndpoint) {
+    const res = await fetch(
+      `/api/calendars/${calendarId}/webhooks/${hook.id}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: !hook.enabled }),
+      },
+    );
+    if (!res.ok) {
+      toast("Failed to update webhook", { variant: "error" });
+      return;
+    }
+    toast(hook.enabled ? "Webhook disabled" : "Webhook enabled", {
+      variant: "success",
+    });
+    await loadAll();
+  }
+
   async function deleteWebhook(hook: WebhookEndpoint) {
     if (!window.confirm(`Delete webhook ${hook.url}?`)) {
       return;
@@ -732,7 +751,14 @@ export function IntegrationsPanel({
                             {hook.enabledEvents.join(", ")}
                           </p>
                         </div>
-                        <div className="flex shrink-0 gap-2">
+                        <div className="flex shrink-0 items-center gap-2">
+                          <label className="flex items-center gap-1.5 text-sm text-neutral-600">
+                            <Checkbox
+                              checked={hook.enabled}
+                              onChange={() => void toggleWebhookEnabled(hook)}
+                            />
+                            {hook.enabled ? "Enabled" : "Disabled"}
+                          </label>
                           <Button
                             type="button"
                             variant="secondary"

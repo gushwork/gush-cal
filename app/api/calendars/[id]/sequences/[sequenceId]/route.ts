@@ -7,13 +7,13 @@ import {
 import {
   deleteSequence,
   getSequence,
+  isAppEventType,
   listSequenceSteps,
   updateSequence,
   type UpdateSequenceInput,
 } from "@/lib/email/sequences";
 import { getDb } from "@/lib/db/client";
 import { calendars } from "@/lib/db/schema";
-import type { AppEventType } from "@/lib/types/platform";
 
 type RouteParams = { params: Promise<{ id: string; sequenceId: string }> };
 
@@ -71,12 +71,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     return jsonError("Invalid JSON body", 400);
   }
 
-  const sequence = await updateSequence(calendarId, sequenceId, {
-    ...body,
-    ...(body.triggerEvent != null
-      ? { triggerEvent: body.triggerEvent as AppEventType }
-      : {}),
-  });
+  if (body.triggerEvent != null && !isAppEventType(body.triggerEvent)) {
+    return jsonError("triggerEvent must be a valid event type", 400);
+  }
+
+  const sequence = await updateSequence(calendarId, sequenceId, body);
   if (!sequence) {
     return jsonError("Sequence not found", 404);
   }

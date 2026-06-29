@@ -26,15 +26,24 @@ export function createSlotEngineStub(): SlotEnginePort {
     },
 
     async assignMember(req: AssignMemberRequest) {
-      const member = [...req.bundle.members].sort(
+      const endsAt =
+        new Date(req.startsAt).getTime() + req.durationMinutes * 60_000;
+      if (endsAt <= Date.now()) {
+        return { ok: false, code: "SLOT_UNAVAILABLE" };
+      }
+
+      const members = [...req.bundle.members].sort(
         (a, b) => a.sortOrder - b.sortOrder,
-      )[0];
+      );
+      const member = req.memberId
+        ? members.find((m) => m.id === req.memberId)
+        : members[0];
 
       if (!member) {
         return { ok: false, code: "SLOT_UNAVAILABLE" };
       }
 
-      return { ok: true, member, eligibleMembers: req.bundle.members };
+      return { ok: true, member, eligibleMembers: members };
     },
   };
 }

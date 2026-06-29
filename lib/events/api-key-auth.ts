@@ -56,10 +56,16 @@ export async function authenticateApiKey(
     return { ok: false, code: "UNAUTHORIZED" };
   }
 
-  void getDb()
-    .update(apiKeys)
-    .set({ lastUsedAt: new Date().toISOString() })
-    .where(eq(apiKeys.keyHash, keyHash));
+  // Best-effort usage stamp; awaited so the lazy query actually runs, and
+  // failures never block authentication.
+  try {
+    await getDb()
+      .update(apiKeys)
+      .set({ lastUsedAt: new Date().toISOString() })
+      .where(eq(apiKeys.keyHash, keyHash));
+  } catch {
+    // ignore usage-stamp failures
+  }
 
   return { ok: true, calendarId: row.calendarId };
 }

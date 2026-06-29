@@ -20,9 +20,11 @@ import {
   cancelPendingEmailSteps,
   computeStepFireAt,
   enqueueSequenceForMeeting,
+  isAppEventType,
   listSequenceSteps,
   listSequences,
   replaceSequenceSteps,
+  SequenceValidationError,
   setEmailDbForTest,
   setEmailManageTokenForTest,
   updateSequence,
@@ -78,6 +80,11 @@ function seedSettings(
 beforeEach(() => {
   vi.clearAllMocks();
   testDb = createEmailTestDb();
+  // Stub db has no transaction(); run the callback against the same db so
+  // replaceSequenceSteps works. Rollback-specific tests override this.
+  (testDb.db as unknown as {
+    transaction: <T>(fn: (tx: typeof testDb.db) => Promise<T>) => Promise<T>;
+  }).transaction = (fn) => fn(testDb.db);
   setEmailDbForTest(testDb.db as never);
   setEmailExecutorDbForTest(testDb.db as never);
   setEmailManageTokenForTest({
@@ -200,6 +207,90 @@ describe("sequence CRUD", () => {
     ]);
     expect(replaced).toHaveLength(2);
     expect(replaced?.[1]?.action).toBe("webhook");
+  });
+
+  it("BUG-026/027: isAppEventType accepts known events, rejects junk", () => {
+    expect(isAppEventType("meeting.booked")).toBe(true);
+    expect(isAppEventType("routing.owner_overflow")).toBe(true);
+    expect(isAppEventType("not.a.real.event")).toBe(false);
+    expect(isAppEventType("")).toBe(false);
+    expect(isAppEventType(undefined)).toBe(false);
+    expect(isAppEventType(42)).toBe(false);
+  });
+
+  it("BUG-053: rejects duplicate stepOrder in a replace payload", async () => {
+    const sequence = await createSequence(CALENDAR_ID, {
+      name: "Dup",
+      triggerEvent: "meeting.booked",
+    });
+    await expect(
+      replaceSequenceSteps(CALENDAR_ID, sequence.id, [
+        { order: 1, delayMinutes: 0, action: "webhook" },
+        { order: 1, delayMinutes: 5, action: "webhook" },
+      ]),
+    ).rejects.toBeInstanceOf(SequenceValidationError);
+  });
+
+  it("BUG-054: empty patch is a no-op returning the existing sequence", async () => {
+    const sequence = await createSequence(CALENDAR_ID, {
+      name: "NoOp",
+      triggerEvent: "meeting.booked",
+    });
+    // update() must not run for an empty patch (postgres errors on .set({})).
+    const guarded = {
+      ...(testDb.db as Record<string, unknown>),
+      update: () => {
+        throw new Error("update should not run for an empty patch");
+      },
+    };
+    setEmailDbForTest(guarded as never);
+
+    const result = await updateSequence(CALENDAR_ID, sequence.id, {});
+    expect(result?.id).toBe(sequence.id);
+    expect(result?.name).toBe("NoOp");
+  });
+
+  it("BUG-028: failed insert rolls back the step delete", async () => {
+    const sequence = await createSequence(CALENDAR_ID, {
+      name: "Tx",
+      triggerEvent: "meeting.booked",
+    });
+    await createSequenceStep(CALENDAR_ID, sequence.id, {
+      order: 1,
+      delayMinutes: 0,
+      action: "webhook",
+    });
+
+    const base = testDb.db as Record<string, unknown>;
+    const txDb = {
+      ...base,
+      insert: () => ({
+        values: () => ({
+          returning: async () => {
+            throw new Error("insert boom");
+          },
+        }),
+      }),
+      transaction: async (fn: (tx: unknown) => Promise<unknown>) => {
+        const snapshot = testDb.store.steps.map((s) => ({ ...s }));
+        try {
+          return await fn(txDb);
+        } catch (error) {
+          testDb.store.steps = snapshot;
+          throw error;
+        }
+      },
+    };
+    setEmailDbForTest(txDb as never);
+
+    await expect(
+      replaceSequenceSteps(CALENDAR_ID, sequence.id, [
+        { order: 1, delayMinutes: 0, action: "webhook" },
+      ]),
+    ).rejects.toThrow("insert boom");
+
+    setEmailDbForTest(testDb.db as never);
+    expect(await listSequenceSteps(CALENDAR_ID, sequence.id)).toHaveLength(1);
   });
 });
 

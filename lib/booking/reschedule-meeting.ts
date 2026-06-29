@@ -9,7 +9,6 @@ import {
   meetings,
   schedulers,
 } from "@/lib/db/schema";
-import { formatGoogleErrorMessage } from "@/lib/google/google-errors";
 import type { CalendarBundle, Meeting } from "@/lib/types";
 import {
   defaultCalendarSettings,
@@ -195,25 +194,13 @@ export async function rescheduleMeeting(
     return { ok: false, code: "SLOT_UNAVAILABLE" };
   }
 
-  try {
-    await deps.google.deleteEvent(organizerEmail, meeting.googleEventId);
-  } catch (error) {
-    console.error("[rescheduleMeeting] Google delete failed", {
-      meetingId: meeting.id,
-      error,
-    });
-    return {
-      ok: false,
-      code: "GOOGLE_ERROR",
-      message: formatGoogleErrorMessage(error),
-    };
-  }
-
   const attendeeEmails = buildAttendeeEmails(
     assignment.member.email,
     meeting,
   );
 
+  // BUG-020: create new event FIRST so a create failure leaves the old event
+  // + DB row intact (no orphaned googleEventId).
   const googleResult = await deps.google.createMeetingEvent({
     organizerEmail,
     startsAt: input.startsAt,
@@ -238,6 +225,17 @@ export async function rescheduleMeeting(
       meetLink: googleResult.meetLink,
     })
     .where(eq(meetings.id, meeting.id));
+
+  // Old event delete is best-effort: DB already points at the new event.
+  try {
+    await deps.google.deleteEvent(organizerEmail, meeting.googleEventId);
+  } catch (error) {
+    console.error("[rescheduleMeeting] stale event delete failed", {
+      meetingId: meeting.id,
+      googleEventId: meeting.googleEventId,
+      error,
+    });
+  }
 
   const updatedMeeting: Meeting = {
     ...meeting,

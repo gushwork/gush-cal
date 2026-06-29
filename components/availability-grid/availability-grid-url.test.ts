@@ -18,4 +18,18 @@ describe("AvailabilityGrid URL sync", () => {
     expect(source).toContain("buildAvailabilitySearchParams");
     expect(source).toContain("navigateToDate");
   });
+
+  it("syncs state from external URL changes and drops the dead navigation ref", () => {
+    const source = readFileSync(
+      join(
+        process.cwd(),
+        "components/availability-grid/availability-grid.tsx",
+      ),
+      "utf8",
+    );
+
+    expect(source).toContain("setAnchorDate(initialParams.anchorDate)");
+    expect(source).toContain("setViewMode(initialParams.viewMode)");
+    expect(source).not.toContain("userNavigatedRef");
+  });
 });

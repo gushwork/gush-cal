@@ -2,16 +2,22 @@ import type {
   ResolveBookingTargetResult,
 } from "@/lib/ports/routing";
 import type { CalendarTeamPoolSettings } from "@/lib/types/platform";
+import { getTeam } from "@/lib/teams/teams";
 
-export function applyTeamSelectionMode(
+export async function applyTeamSelectionMode(
   calendarId: string,
   teamPool: CalendarTeamPoolSettings,
   teamIdFromForm?: string,
-): ResolveBookingTargetResult {
+): Promise<ResolveBookingTargetResult> {
   if (teamIdFromForm) {
+    // BUG-039: never trust a form-supplied team id; verify it belongs here.
+    const team = await getTeam(calendarId, teamIdFromForm);
+    if (!team) {
+      return { ok: false, code: "TEAM_REQUIRED" };
+    }
     return {
       ok: true,
-      target: { mode: "team", calendarId, teamId: teamIdFromForm },
+      target: { mode: "team", calendarId, teamId: team.id },
     };
   }
 

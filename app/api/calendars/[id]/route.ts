@@ -156,29 +156,45 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     return slugResult.response;
   }
 
+  const updates = {
+    ...(body.name != null ? { name: body.name } : {}),
+    ...(body.bookingWindowDays != null
+      ? { bookingWindowDays: body.bookingWindowDays }
+      : {}),
+    ...(body.minNoticeHours != null
+      ? { minNoticeHours: body.minNoticeHours }
+      : {}),
+    ...(body.defaultMaxPerDay != null
+      ? { defaultMaxPerDay: body.defaultMaxPerDay }
+      : {}),
+    ...(body.defaultMaxPerWeek != null
+      ? { defaultMaxPerWeek: body.defaultMaxPerWeek }
+      : {}),
+    ...(body.defaultWorkingHours != null
+      ? { defaultWorkingHours: body.defaultWorkingHours }
+      : {}),
+    ...(body.timezone != null ? { timezone: body.timezone } : {}),
+    ...(body.durations != null ? { durations: body.durations } : {}),
+    ...(slugResult.slug != null ? { slug: slugResult.slug } : {}),
+  };
+
+  if (Object.keys(updates).length === 0) {
+    const [existing] = await getDb()
+      .select()
+      .from(calendars)
+      .where(
+        and(eq(calendars.id, id), eq(calendars.schedulerId, auth.schedulerId)),
+      )
+      .limit(1);
+    if (!existing) {
+      return jsonError("Calendar not found", 404);
+    }
+    return NextResponse.json({ calendar: toCalendar(existing) });
+  }
+
   const [row] = await getDb()
     .update(calendars)
-    .set({
-      ...(body.name != null ? { name: body.name } : {}),
-      ...(body.bookingWindowDays != null
-        ? { bookingWindowDays: body.bookingWindowDays }
-        : {}),
-      ...(body.minNoticeHours != null
-        ? { minNoticeHours: body.minNoticeHours }
-        : {}),
-      ...(body.defaultMaxPerDay != null
-        ? { defaultMaxPerDay: body.defaultMaxPerDay }
-        : {}),
-      ...(body.defaultMaxPerWeek != null
-        ? { defaultMaxPerWeek: body.defaultMaxPerWeek }
-        : {}),
-      ...(body.defaultWorkingHours != null
-        ? { defaultWorkingHours: body.defaultWorkingHours }
-        : {}),
-      ...(body.timezone != null ? { timezone: body.timezone } : {}),
-      ...(body.durations != null ? { durations: body.durations } : {}),
-      ...(slugResult.slug != null ? { slug: slugResult.slug } : {}),
-    })
+    .set(updates)
     .where(
       and(eq(calendars.id, id), eq(calendars.schedulerId, auth.schedulerId)),
     )
@@ -188,7 +204,13 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     return jsonError("Calendar not found", 404);
   }
 
-  if (body.minNoticeHours != null) {
+  const availabilityChanged =
+    body.minNoticeHours !== undefined ||
+    body.durations !== undefined ||
+    body.timezone !== undefined ||
+    body.defaultWorkingHours !== undefined ||
+    body.bookingWindowDays !== undefined;
+  if (availabilityChanged) {
     clearSlotsCacheForCalendar(id);
   }
 

@@ -3,7 +3,7 @@ import type { CalendarTeamPoolSettings } from "@/lib/types/platform";
 import { defaultCalendarSettings } from "@/lib/types/platform";
 import type { EventsPort } from "@/lib/ports/events";
 import type { SalesforcePort } from "@/lib/ports/salesforce";
-import { resolveBookingLink } from "@/lib/booking-links/links";
+import { findBookingLinkBySlug, resolveBookingLink } from "@/lib/booking-links/links";
 import { getTeam, getTeamBySlug } from "@/lib/teams/teams";
 import { applyTeamSelectionMode, applyUnbookableOwnerFallback } from "./policies";
 import { loadCalendarRoutingSettings } from "./load-settings";
@@ -19,6 +19,7 @@ vi.mock("@/lib/teams/teams", () => ({
 
 vi.mock("@/lib/booking-links/links", () => ({
   resolveBookingLink: vi.fn(),
+  findBookingLinkBySlug: vi.fn(),
 }));
 
 vi.mock("./load-settings", () => ({
@@ -87,6 +88,7 @@ beforeEach(() => {
   setRoutingDbForTest(createTestDb([{ id: memberId, email: "owner@acme.com" }]) as never);
   vi.mocked(loadCalendarRoutingSettings).mockResolvedValue(routingSettings());
   vi.mocked(loadCalendarSchedulingSettings).mockResolvedValue(teamPoolSettings());
+  vi.mocked(findBookingLinkBySlug).mockResolvedValue(null);
 });
 
 describe("parseBookingUrlContext", () => {
@@ -123,34 +125,59 @@ describe("parseResolveQuery", () => {
       guestEmail: "guest@acme.com",
     });
   });
+
+  it("accepts ?member= as an alias for member slug (BUG-038)", () => {
+    expect(parseResolveQuery("acme", new URLSearchParams("member=jane"))).toEqual(
+      {
+        urlContext: { calendarSlug: "acme", memberSlug: "jane" },
+      },
+    );
+  });
 });
 
 describe("policies", () => {
-  it("applyTeamSelectionMode returns TEAM_REQUIRED for url_only without form team", () => {
+  it("applyTeamSelectionMode returns TEAM_REQUIRED for url_only without form team", async () => {
     const settings = teamPoolSettings({
       teamSelectionMode: "url_only",
       defaultTeamId,
     });
-    expect(applyTeamSelectionMode(calendarId, settings)).toEqual({
+    expect(await applyTeamSelectionMode(calendarId, settings)).toEqual({
       ok: false,
       code: "TEAM_REQUIRED",
     });
   });
 
-  it("applyTeamSelectionMode uses default team for url_with_default", () => {
+  it("applyTeamSelectionMode uses default team for url_with_default", async () => {
     const settings = teamPoolSettings({ teamSelectionMode: "url_with_default" });
-    expect(applyTeamSelectionMode(calendarId, settings)).toEqual({
+    expect(await applyTeamSelectionMode(calendarId, settings)).toEqual({
       ok: true,
       target: { mode: "team", calendarId, teamId: defaultTeamId },
     });
   });
 
-  it("applyTeamSelectionMode prefers teamIdFromForm", () => {
+  it("applyTeamSelectionMode validates teamIdFromForm (BUG-039)", async () => {
+    vi.mocked(getTeam).mockResolvedValue({
+      id: "team-form",
+      calendarId,
+      name: "Form Team",
+      slug: "form-team",
+      sortOrder: 1,
+    });
     const settings = teamPoolSettings({ teamSelectionMode: "url_only" });
-    expect(applyTeamSelectionMode(calendarId, settings, "team-form")).toEqual({
+    expect(
+      await applyTeamSelectionMode(calendarId, settings, "team-form"),
+    ).toEqual({
       ok: true,
       target: { mode: "team", calendarId, teamId: "team-form" },
     });
+  });
+
+  it("applyTeamSelectionMode rejects an unknown teamIdFromForm (BUG-039)", async () => {
+    vi.mocked(getTeam).mockResolvedValue(null);
+    const settings = teamPoolSettings({ teamSelectionMode: "url_only" });
+    expect(
+      await applyTeamSelectionMode(calendarId, settings, "ghost-team"),
+    ).toEqual({ ok: false, code: "TEAM_REQUIRED" });
   });
 
   it.each([
@@ -283,6 +310,39 @@ describe("resolveBookingTarget", () => {
     });
   });
 
+  it("does not emit overflow for fallback_team_pool policy (BUG-036)", async () => {
+    setRoutingDbForTest(createTestDb([]) as never);
+    vi.mocked(loadCalendarRoutingSettings).mockResolvedValue({
+      ...routingSettings(),
+      unbookableOwnerPolicy: "fallback_team_pool",
+    });
+    const { deps, emit } = createDeps({
+      salesforce: {
+        lookupLeadOwner: vi.fn().mockResolvedValue({
+          ok: true,
+          ownerEmail: "stranger@acme.com",
+          recordId: "sf-1",
+          recordType: "Lead",
+        }),
+      },
+    });
+
+    const result = await resolveBookingTarget(
+      {
+        calendarId,
+        urlContext: { calendarSlug: "acme" },
+        guestEmail: "guest@acme.com",
+      },
+      deps,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      target: { mode: "team", calendarId, teamId: defaultTeamId },
+    });
+    expect(emit).not.toHaveBeenCalled();
+  });
+
   it("resolves team slug to team mode", async () => {
     vi.mocked(getTeamBySlug).mockResolvedValue({
       id: teamId,
@@ -305,6 +365,52 @@ describe("resolveBookingTarget", () => {
       ok: true,
       target: { mode: "team", calendarId, teamId },
     });
+  });
+
+  it("resolves a team slug via an enabled booking link (BUG-013)", async () => {
+    vi.mocked(findBookingLinkBySlug).mockResolvedValue({
+      id: "link-1",
+      calendarId,
+      kind: "team",
+      slug: "enterprise",
+      teamId,
+      memberId: null,
+      redirectOverride: null,
+      enabled: true,
+    });
+    const { deps } = createDeps();
+
+    const result = await resolveBookingTarget(
+      { calendarId, urlContext: { calendarSlug: "acme", teamSlug: "enterprise" } },
+      deps,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      target: { mode: "team", calendarId, teamId },
+    });
+    expect(getTeamBySlug).not.toHaveBeenCalled();
+  });
+
+  it("rejects a disabled team booking link (BUG-013)", async () => {
+    vi.mocked(findBookingLinkBySlug).mockResolvedValue({
+      id: "link-1",
+      calendarId,
+      kind: "team",
+      slug: "enterprise",
+      teamId,
+      memberId: null,
+      redirectOverride: null,
+      enabled: false,
+    });
+    const { deps } = createDeps();
+
+    const result = await resolveBookingTarget(
+      { calendarId, urlContext: { calendarSlug: "acme", teamSlug: "enterprise" } },
+      deps,
+    );
+
+    expect(result).toEqual({ ok: false, code: "TEAM_REQUIRED" });
   });
 
   it("uses teamIdFromForm when provided", async () => {

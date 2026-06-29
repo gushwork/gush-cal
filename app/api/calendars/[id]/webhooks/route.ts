@@ -9,6 +9,7 @@ import { calendars } from "@/lib/db/schema";
 import {
   createWebhookEndpoint,
   listWebhookEndpoints,
+  validateWebhookUrl,
   type CreateWebhookInput,
 } from "@/lib/events/webhooks";
 import type { AppEventType } from "@/lib/types/platform";
@@ -89,8 +90,9 @@ export async function POST(request: Request, { params }: RouteParams) {
     return jsonError("Invalid JSON body", 400);
   }
 
-  if (!body.url || typeof body.url !== "string") {
-    return jsonError("url is required", 400);
+  const urlError = validateWebhookUrl(body.url);
+  if (urlError) {
+    return jsonError(urlError, 400);
   }
 
   const enabledEvents = validateEnabledEvents(body.enabledEvents);

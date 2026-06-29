@@ -4,25 +4,16 @@ import {
   jsonError,
   requireSchedulerId,
 } from "@/components/calendar-admin/require-scheduler";
-import { validateMemberEmail } from "@/components/calendar-admin/validation";
+import {
+  validateAssignmentWeight,
+  validateCapOverride,
+  validateMemberEmail,
+} from "@/components/calendar-admin/validation";
 import { getDb } from "@/lib/db/client";
 import { toCalendarMember } from "@/lib/db/mappers";
 import { calendarMembers, calendars } from "@/lib/db/schema";
 import type { CreateMemberBody } from "@/lib/types/api";
 import { validateMemberHoursAndTimezone } from "@/lib/working-hours/validate";
-
-function validateAssignmentWeight(value: unknown): string | null {
-  if (value === undefined) {
-    return null;
-  }
-  if (typeof value !== "number" || !Number.isInteger(value)) {
-    return "Assignment weight must be an integer between 1 and 1000";
-  }
-  if (value < 1 || value > 1000) {
-    return "Assignment weight must be an integer between 1 and 1000";
-  }
-  return null;
-}
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -72,6 +63,19 @@ export async function POST(request: Request, { params }: RouteParams) {
   const weightError = validateAssignmentWeight(body.assignmentWeight);
   if (weightError) {
     return jsonError(weightError, 400);
+  }
+
+  const dayCapError = validateCapOverride(body.maxPerDayOverride, "Max per day");
+  if (dayCapError) {
+    return jsonError(dayCapError, 400);
+  }
+
+  const weekCapError = validateCapOverride(
+    body.maxPerWeekOverride,
+    "Max per week",
+  );
+  if (weekCapError) {
+    return jsonError(weekCapError, 400);
   }
 
   const workingHoursOverride =

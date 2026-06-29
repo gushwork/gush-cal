@@ -24,12 +24,41 @@ export function validateDurations(durations: number[]): string | null {
 }
 
 export function validateMemberEmail(email: string): string | null {
+  if (typeof email !== "string" || email.trim() === "") {
+    return "Email is required";
+  }
   const domain = getAllowedDomain();
   if (!domain) {
     return "ALLOWED_DOMAIN is not configured";
   }
   if (!isAllowedEmail(email, domain)) {
     return `Email must be on @${domain.replace(/^@/, "")}`;
+  }
+  return null;
+}
+
+export function validateAssignmentWeight(value: unknown): string | null {
+  if (value === undefined) {
+    return null;
+  }
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    return "Assignment weight must be an integer between 1 and 1000";
+  }
+  if (value < 1 || value > 1000) {
+    return "Assignment weight must be an integer between 1 and 1000";
+  }
+  return null;
+}
+
+export function validateCapOverride(
+  value: unknown,
+  label: string,
+): string | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
+    return `${label} must be a positive integer`;
   }
   return null;
 }

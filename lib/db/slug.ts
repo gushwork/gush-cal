@@ -6,9 +6,11 @@ const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
 const RESERVED_SLUGS = new Set(["api", "login", "calendars", "book"]);
 
-/** URL-safe slug for public booking links (≥16 chars). */
+/** Slug for public booking links: lowercase hex (24 chars) so it passes validateCalendarSlug. */
 export function generateCalendarSlug(): string {
-  return randomBytes(12).toString("base64url");
+  // ponytail: random hex is collision-safe (96 bits); rely on the unique DB
+  // constraint for the residual TOCTOU between generate and insert.
+  return randomBytes(12).toString("hex");
 }
 
 export function normalizeCalendarSlug(input: string): string {

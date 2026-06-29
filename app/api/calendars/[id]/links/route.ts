@@ -5,7 +5,9 @@ import {
   requireSchedulerId,
 } from "@/components/calendar-admin/require-scheduler";
 import {
+  BookingLinkSlugTakenError,
   createBookingLink,
+  isUniqueViolation,
   listBookingLinks,
   type CreateBookingLinkInput,
 } from "@/lib/booking-links/links";
@@ -83,14 +85,12 @@ export async function POST(request: Request, { params }: RouteParams) {
     return NextResponse.json({ link }, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to create link";
-    if (/taken/i.test(message)) {
+    // BUG-059: typed conflict or a real PG unique-violation race → 409.
+    if (err instanceof BookingLinkSlugTakenError || isUniqueViolation(err)) {
       return jsonError(message, 409);
     }
     if (/not found/i.test(message)) {
       return jsonError(message, 404);
-    }
-    if (/slug is required/i.test(message)) {
-      return jsonError(message, 400);
     }
     return jsonError(message, 400);
   }

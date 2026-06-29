@@ -5,6 +5,8 @@ import type { ManageTokenPort } from "@/lib/ports/manage-token";
 import type { RoutingPort } from "@/lib/ports/routing";
 import type { SalesforcePort } from "@/lib/ports/salesforce";
 import { createMeetingCounter } from "@/lib/db/meeting-counter";
+import { createManageTokenPort } from "@/lib/meeting-tokens";
+import { createRoutingPort } from "@/lib/routing";
 import type { DbMeetingCounter } from "@/lib/ports/meeting-counter";
 import type { GoogleCalendarPort } from "@/lib/ports/google-calendar";
 import type { SlotEnginePort } from "@/lib/ports/slot-engine";
@@ -99,10 +101,10 @@ function resolveSlotPort(
 }
 
 function resolveRoutingPort(): RoutingPort {
-  if (shouldUseStubs()) {
+  if (shouldUseStubs() && !process.env.DATABASE_URL) {
     return createRoutingStub();
   }
-  return tryRequire<RoutingPort>("@/lib/routing", "createRoutingPort") ?? createRoutingStub();
+  return createRoutingPort();
 }
 
 function resolveSalesforcePort(): SalesforcePort {
@@ -144,13 +146,10 @@ function resolveEventsPort(): EventsPort {
 }
 
 function resolveManageTokenPort(): ManageTokenPort {
-  if (shouldUseStubs()) {
+  if (shouldUseStubs() && !process.env.DATABASE_URL) {
     return createManageTokenStub();
   }
-  return (
-    tryRequire<ManageTokenPort>("@/lib/meeting-tokens", "createManageTokenPort") ??
-    createManageTokenStub()
-  );
+  return createManageTokenPort();
 }
 
 function resolveEmailPort(): EmailPort {

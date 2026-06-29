@@ -35,7 +35,7 @@ export default async function CalendarDetailLayout({
       <Breadcrumbs
         items={[
           { label: "Calendars", href: "/calendars" },
-          { label: bundle.name },
+          { label: bundle.name, href: `/calendars/${id}` },
         ]}
       />
 

@@ -245,6 +245,9 @@ export function BookingFlow({
     null,
   );
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [memberIdForBooking, setMemberIdForBooking] = useState<string | null>(
+    null,
+  );
   const [teamPickerResolved, setTeamPickerResolved] = useState(!isPublic);
   const [metadataLoading, setMetadataLoading] = useState(isPublic);
   const [duplicatePrompt, setDuplicatePrompt] = useState<{
@@ -311,6 +314,37 @@ export function BookingFlow({
     }
   }, [needsTeamPicker, metadataLoading]);
 
+  // BUG-037: member-mode deep links (/book/:slug/m/<member>) must scope slots and
+  // booking to that member. Resolve the slug → memberId via the resolve route.
+  useEffect(() => {
+    const memberSlug = urlContext?.memberSlug;
+    if (!isPublic || !calendarSlug || !memberSlug) {
+      setMemberIdForBooking(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/book/${calendarSlug}/resolve?memberSlug=${encodeURIComponent(memberSlug)}`,
+        );
+        const data = (await res.json()) as {
+          target?: { memberId?: string };
+        };
+        if (!cancelled) {
+          setMemberIdForBooking(data.target?.memberId ?? null);
+        }
+      } catch {
+        if (!cancelled) {
+          setMemberIdForBooking(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [calendarSlug, isPublic, urlContext?.memberSlug]);
+
   const { minDate, maxDate } = useMemo(
     () => computeBookingWindow(bookingWindowDays),
     [bookingWindowDays],
@@ -365,6 +399,9 @@ export function BookingFlow({
       if (teamIdForBooking) {
         params.set("teamId", teamIdForBooking);
       }
+      if (memberIdForBooking) {
+        params.set("memberId", memberIdForBooking);
+      }
       const res = await fetch(`${slotsApiPath}?${params}`);
       const data = (await res.json()) as { slots?: Slot[]; error?: string };
       if (!res.ok) {
@@ -387,6 +424,7 @@ export function BookingFlow({
     maxDate,
     slotsApiPath,
     teamIdForBooking,
+    memberIdForBooking,
   ]);
 
   useEffect(() => {
@@ -441,6 +479,9 @@ export function BookingFlow({
         if (teamIdForBooking) {
           params.set("teamId", teamIdForBooking);
         }
+        if (memberIdForBooking) {
+          params.set("memberId", memberIdForBooking);
+        }
         const res = await fetch(`${slotsApiPath}?${params}`);
         const data = (await res.json()) as { slots?: Slot[]; error?: string };
         if (!res.ok) {
@@ -493,6 +534,7 @@ export function BookingFlow({
     minDate,
     maxDate,
     teamIdForBooking,
+    memberIdForBooking,
   ]);
 
   function handleTimezoneChange(tz: string) {
@@ -592,6 +634,7 @@ export function BookingFlow({
       invitees: inviteeList,
       viewerTimezone,
       ...(teamIdForBooking ? { teamId: teamIdForBooking } : {}),
+      ...(memberIdForBooking ? { memberId: memberIdForBooking } : {}),
       ...(forceDuplicate ? { forceDuplicate: true } : {}),
       ...(isPublic && guestEmail.trim()
         ? { guestEmail: guestEmail.trim() }
