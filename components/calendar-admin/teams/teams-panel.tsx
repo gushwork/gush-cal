@@ -456,7 +456,7 @@ export function TeamsPanel({
                     id={`team-panel-${team.id}`}
                     role="region"
                     aria-labelledby={`team-header-${team.id}`}
-                    className="border-t border-neutral-100 px-4 py-4 sm:px-5"
+                    className="border-t border-neutral-100 px-4 py-4 sm:px-6"
                   >
                     <div className="mb-4 sm:hidden">
                       <SlugEditor

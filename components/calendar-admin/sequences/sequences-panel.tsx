@@ -589,7 +589,7 @@ export function SequencesPanel({
                     id={`sequence-panel-${sequence.id}`}
                     role="region"
                     aria-labelledby={`sequence-header-${sequence.id}`}
-                    className="border-t border-neutral-100 px-4 py-4 sm:px-5"
+                    className="border-t border-neutral-100 px-4 py-4 sm:px-6"
                   >
                     {renderStepsEditor(sequence.id)}
                   </div>

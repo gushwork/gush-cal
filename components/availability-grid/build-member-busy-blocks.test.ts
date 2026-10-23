@@ -11,7 +11,9 @@ const members: CalendarMember[] = [
     maxPerDayOverride: null,
     maxPerWeekOverride: null,
     workingHoursOverride: null,
+    timezone: null,
     sortOrder: 1,
+    assignmentWeight: 100,
   },
   {
     id: "m-2",
@@ -21,7 +23,9 @@ const members: CalendarMember[] = [
     maxPerDayOverride: null,
     maxPerWeekOverride: null,
     workingHoursOverride: null,
+    timezone: null,
     sortOrder: 2,
+    assignmentWeight: 100,
   },
 ];
 

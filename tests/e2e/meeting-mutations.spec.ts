@@ -73,7 +73,7 @@ test.describe("POST /api/meetings/:id/reassign authed validation", () => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        data: "not-json",
+        data: Buffer.from("not-json"),
       },
     );
 
@@ -203,7 +203,10 @@ test.describe("admin meetings page authed render", () => {
     await expect(
       page.getByRole("heading", { name: "Meetings", level: 1 }),
     ).toBeVisible();
-    await expect(page.getByText("E2E seeded meeting").first()).toBeVisible();
+    // The list renders mobile and desktop copies; only one is visible.
+    await expect(
+      page.getByText("E2E seeded meeting").filter({ visible: true }).first(),
+    ).toBeVisible();
 
     expect(
       await page.getByRole("button", { name: /^Cancel/ }).count(),

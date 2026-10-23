@@ -31,6 +31,7 @@ const mockBundle = {
       workingHoursOverride: null,
       timezone: null,
       sortOrder: 1,
+      assignmentWeight: 100,
     },
   ],
 };

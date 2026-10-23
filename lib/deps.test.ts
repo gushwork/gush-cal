@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAppDeps, resetAppDepsForTests } from "@/lib/deps";
 import { createGoogleCalendarStub } from "@/lib/stubs/google-calendar-stub";
 import { createSlotEngineStub } from "@/lib/stubs/slot-engine-stub";
@@ -9,6 +9,10 @@ describe("createAppDeps", () => {
     resetAppDepsForTests();
     process.env.USE_STUBS = "1";
     delete process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("returns stub google and slot ports when USE_STUBS=1", () => {
@@ -48,6 +52,9 @@ describe("createAppDeps", () => {
   });
 
   it("slot stub assigns first member by sort order", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-01T12:00:00.000Z"));
+
     const slots = createSlotEngineStub();
     const result = await slots.assignMember({
       bundle: {
@@ -60,6 +67,7 @@ describe("createAppDeps", () => {
         defaultMaxPerDay: 3,
         defaultMaxPerWeek: 15,
         defaultWorkingHours: [],
+        timezone: "UTC",
         durations: [30],
         createdAt: "2026-01-01T00:00:00.000Z",
         scheduler: { id: "sched-1", email: "r@acme.com", name: "Recruiter" },
@@ -72,6 +80,7 @@ describe("createAppDeps", () => {
             maxPerDayOverride: null,
             maxPerWeekOverride: null,
             workingHoursOverride: null,
+            timezone: null,
             sortOrder: 2,
             assignmentWeight: 100,
           },
@@ -83,6 +92,7 @@ describe("createAppDeps", () => {
             maxPerDayOverride: null,
             maxPerWeekOverride: null,
             workingHoursOverride: null,
+            timezone: null,
             sortOrder: 1,
             assignmentWeight: 100,
           },

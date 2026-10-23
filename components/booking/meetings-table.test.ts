@@ -49,6 +49,9 @@ describe("SP-24 meetings table", () => {
       meetLink: null,
       bookedBy: "guest",
       guestEmail: null,
+      teamId: null,
+      bookingLinkId: null,
+      cancelledAt: null,
       createdAt: "2020-01-01T09:00:00.000Z",
     };
 

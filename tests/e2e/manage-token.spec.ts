@@ -172,7 +172,7 @@ test.describe("manage-token guest self-service", () => {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: "{",
+        data: Buffer.from("{"),
       },
     );
     expect(res.status()).toBe(400);

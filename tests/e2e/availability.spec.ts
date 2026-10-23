@@ -108,7 +108,7 @@ test.describe("availability API (authed)", () => {
 
     expect(response.status()).toBe(400);
     await expect(response.json()).resolves.toMatchObject({
-      error: expect.stringMatching(/missing/i),
+      error: "Invalid from or to query parameter",
     });
   });
 

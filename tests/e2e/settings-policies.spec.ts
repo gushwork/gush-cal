@@ -248,7 +248,10 @@ test.describe("policies + scheduling pages (authed)", () => {
       page.getByRole("heading", { name: "Scheduling", level: 1 }),
     ).toBeVisible();
 
-    await page.getByLabel("Assignment mode").selectOption("random");
+    // "Reschedule assignment" mentions "assignment mode" in its description.
+    await page
+      .getByRole("combobox", { name: /^Assignment mode/ })
+      .selectOption("random");
     await page.getByRole("button", { name: "Save scheduling" }).click();
     await expect(page.getByText("Scheduling saved")).toBeVisible();
 

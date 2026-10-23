@@ -143,7 +143,7 @@ export function PoliciesPanel({
       ) : (
         <form
           onSubmit={handleSave}
-          className="min-w-0 space-y-8 rounded-xl border border-neutral-100 bg-white p-4 shadow-s3 sm:p-5"
+          className="min-w-0 space-y-8 rounded-xl border border-neutral-100 bg-white p-4 shadow-s3 sm:p-6"
         >
           <section className="space-y-4">
             <h2 className="font-grotesk text-lg font-medium text-neutral-900">
