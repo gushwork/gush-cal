@@ -46,7 +46,7 @@ export default async function CalendarDetailLayout({
       />
 
       <div className="flex min-w-0 flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
-        <aside className="min-w-0 w-full shrink-0 border-b border-neutral-100 pb-6 lg:w-auto lg:border-0 lg:pb-0 lg:sticky lg:top-6 lg:self-start">
+        <aside className="min-w-0 w-full shrink-0 border-b border-neutral-100 pb-3 lg:w-auto lg:border-0 lg:pb-0 lg:sticky lg:top-6 lg:self-start">
           <CalendarSidebar calendarId={id} />
         </aside>
         <div className="min-w-0 flex-1 overflow-x-hidden">{children}</div>
