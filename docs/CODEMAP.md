@@ -1,6 +1,6 @@
 # Code Map
 
-Agent-facing guide to find code quickly. Read `CONTEXT.md` first for domain language.
+Agent-facing guide to find code quickly. Read `CONTEXT.md` first for domain language. For symbol-level lookups and cross-module relationships, query the graphify knowledge graph (see "Code Navigation With graphify" in `AGENTS.md`).
 
 ## Fast Lookup
 

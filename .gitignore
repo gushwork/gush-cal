@@ -44,3 +44,5 @@ test-results/
 playwright-report/
 blob-report/
 tests/e2e/.auth/
+# graphify knowledge graph (local, regenerate with `graphify update .`)
+graphify-out/
