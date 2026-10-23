@@ -54,6 +54,9 @@
   "overrides": {
     "@esbuild-kit/core-utils": {
       "esbuild": "^0.25.12"
+    },
+    "@next/eslint-plugin-next": {
+      "fast-glob": "npm:tinyglobby@^0.2.17"
     }
   }
 }
