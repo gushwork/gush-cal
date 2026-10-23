@@ -9,11 +9,11 @@ import type { DbMeetingCounter } from "@/lib/ports/meeting-counter";
 import { createGoogleCalendarStub } from "@/lib/stubs/google-calendar-stub";
 import { createSlotEnginePort } from "@/lib/slots";
 import { getBookingWindow } from "@/lib/slots/time";
-import type { CalendarBundle } from "@/lib/types";
+import type { CalendarBundle, WorkingHours } from "@/lib/types";
 
 const IST = "Asia/Kolkata";
 
-const weekdayHours = [
+const weekdayHours: WorkingHours = [
   { day: 1, start: 540, end: 1020 },
   { day: 2, start: 540, end: 1020 },
   { day: 3, start: 540, end: 1020 },
@@ -47,6 +47,7 @@ function makeBundle(overrides?: Partial<CalendarBundle>): CalendarBundle {
         workingHoursOverride: null,
         timezone: null,
         sortOrder: 1,
+        assignmentWeight: 100,
       },
     ],
     ...overrides,

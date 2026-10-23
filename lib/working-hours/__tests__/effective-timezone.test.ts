@@ -27,6 +27,7 @@ const member: CalendarMember = {
   workingHoursOverride: [{ day: 1, start: 540, end: 1020 }],
   timezone: "Asia/Tokyo",
   sortOrder: 1,
+  assignmentWeight: 100,
 };
 
 describe("effectiveTimezone", () => {

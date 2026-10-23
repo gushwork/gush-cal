@@ -20,6 +20,9 @@ const baseMeeting: Meeting = {
   meetLink: "https://meet.google.com/abc",
   bookedBy: "scheduler",
   guestEmail: null,
+  teamId: null,
+  bookingLinkId: null,
+  cancelledAt: null,
   createdAt: "2026-06-01T10:00:00.000Z",
 };
 

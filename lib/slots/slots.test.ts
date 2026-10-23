@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CalendarBundle } from "@/lib/types";
+import type { CalendarBundle, WorkingHours } from "@/lib/types";
 import type { DbMeetingCounter } from "@/lib/ports/meeting-counter";
 import { createGoogleCalendarStub } from "@/lib/stubs/google-calendar-stub";
 import { effectiveCaps } from "@/lib/slots/cap-limits";
@@ -24,7 +24,7 @@ import { getTeamMemberIds } from "@/lib/teams/teams";
 
 const mockGetTeamMemberIds = vi.mocked(getTeamMemberIds);
 
-const weekdayHours = [
+const weekdayHours: WorkingHours = [
   { day: 1, start: 540, end: 1020 },
   { day: 2, start: 540, end: 1020 },
   { day: 3, start: 540, end: 1020 },
@@ -32,7 +32,7 @@ const weekdayHours = [
   { day: 5, start: 540, end: 1020 },
 ];
 
-const defaultHours = [{ day: 1, start: 540, end: 1020 }]; // Mon 9–17
+const defaultHours: WorkingHours = [{ day: 1, start: 540, end: 1020 }]; // Mon 9–17
 
 function makeBundle(overrides?: Partial<CalendarBundle>): CalendarBundle {
   return {
@@ -513,7 +513,7 @@ describe("createSlotEnginePort", () => {
   it("evaluates working hours in member effective TZ, not guest TZ", async () => {
     const google = createGoogleCalendarStub();
     const engine = createSlotEnginePort({ google, db: makeDb({}) });
-    const tokyoHours = [{ day: 1, start: 540, end: 1020 }]; // Mon 9–17
+    const tokyoHours: WorkingHours = [{ day: 1, start: 540, end: 1020 }]; // Mon 9–17
     const startsAt = "2026-06-08T00:30:00.000Z"; // Mon 09:30 Asia/Tokyo; Mon 00:30 UTC (out of hours)
 
     const bundle = makeBundle({

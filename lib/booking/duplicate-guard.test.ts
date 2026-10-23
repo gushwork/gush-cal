@@ -3,6 +3,7 @@ import type { ManageTokenPort } from "@/lib/ports/manage-token";
 import type { EventsPort } from "@/lib/ports/events";
 import type { CalendarDuplicateSettings } from "@/lib/types/platform";
 import { createDuplicateGuardPort } from "./duplicate-guard";
+import type { AppDatabase } from "@/lib/db/client";
 
 // Uses meetings_guest_email_active_idx (guest_email, starts_at) for guest lookup.
 
@@ -35,7 +36,7 @@ function createMockDb(selectResults: unknown[][]) {
   }));
   const mockSelect = vi.fn(() => ({ from: mockFrom }));
   return {
-    db: { select: mockSelect },
+    db: { select: mockSelect } as unknown as AppDatabase,
     mockLimit,
   };
 }

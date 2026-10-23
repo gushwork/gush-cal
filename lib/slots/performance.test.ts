@@ -1,12 +1,12 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { CalendarBundle } from "@/lib/types";
+import type { CalendarBundle, WorkingHours } from "@/lib/types";
 import type { DbMeetingCounter } from "@/lib/ports/meeting-counter";
 import { createGoogleCalendarStub } from "@/lib/stubs/google-calendar-stub";
 import { clearFreeBusyCache } from "./freebusy-cache";
 import { fetchBookableSlotsBatch } from "./fetch-bookable-slots-batch";
 import { computeAvailableSlots } from "./generate-slots";
 
-const weekdayHours = [
+const weekdayHours: WorkingHours = [
   { day: 1, start: 540, end: 1020 },
   { day: 2, start: 540, end: 1020 },
   { day: 3, start: 540, end: 1020 },
@@ -39,6 +39,7 @@ function makeBundle(): CalendarBundle {
       workingHoursOverride: null,
       timezone: null,
       sortOrder: index,
+      assignmentWeight: 100,
     })),
   };
 }

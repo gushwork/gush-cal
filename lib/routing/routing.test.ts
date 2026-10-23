@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CalendarTeamPoolSettings } from "@/lib/types/platform";
+import type { CalendarSchedulingSettings } from "@/lib/types/platform";
 import { defaultCalendarSettings } from "@/lib/types/platform";
 import type { EventsPort } from "@/lib/ports/events";
 import type { SalesforcePort } from "@/lib/ports/salesforce";
@@ -36,8 +36,8 @@ const memberId = "mem-1";
 const teamId = "team-1";
 
 function teamPoolSettings(
-  overrides: Partial<CalendarTeamPoolSettings> = {},
-): CalendarTeamPoolSettings {
+  overrides: Partial<CalendarSchedulingSettings> = {},
+): CalendarSchedulingSettings {
   return {
     ...defaultCalendarSettings().scheduling,
     defaultTeamId,
