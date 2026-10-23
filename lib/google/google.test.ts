@@ -9,7 +9,9 @@ const eventsDelete = vi.fn();
 vi.mock("googleapis", () => ({
   google: {
     auth: {
-      JWT: vi.fn().mockImplementation(() => ({})),
+      JWT: vi.fn(function () {
+        return {};
+      }),
     },
     calendar: vi.fn(() => ({
       freebusy: { query: freebusyQuery },
