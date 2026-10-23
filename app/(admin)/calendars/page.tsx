@@ -6,7 +6,7 @@ import { getDb } from "@/lib/db/client";
 import { toCalendar } from "@/lib/db/mappers";
 import { calendarMembers, calendars, meetings } from "@/lib/db/schema";
 import { cn } from "@/lib/ui/cn";
-import { and, count, desc, eq, gte, inArray, isNull } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNull } from "drizzle-orm";
 import { Calendar, CalendarDays, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -19,45 +19,43 @@ export default async function CalendarsListPage() {
     redirect("/login");
   }
 
-  const rows = await getDb()
-    .select({
-      calendar: calendars,
-      memberCount: count(calendarMembers.id),
-    })
-    .from(calendars)
-    .leftJoin(calendarMembers, eq(calendars.id, calendarMembers.calendarId))
-    .where(eq(calendars.schedulerId, schedulerId))
-    .groupBy(calendars.id)
-    .orderBy(desc(calendars.createdAt));
-
-  const items = rows.map((row) => toCalendar(row.calendar));
-  const memberCountByCalendar = new Map(
-    rows.map((row) => [row.calendar.id, row.memberCount]),
-  );
-
-  const calendarIds = items.map((cal) => cal.id);
-  const upcomingByCalendar = new Map<string, number>();
-  if (calendarIds.length > 0) {
-    const nowIso = new Date().toISOString();
-    const upcomingRows = await getDb()
+  // Both queries filter by Scheduler, so they run in parallel (one round trip).
+  const nowIso = new Date().toISOString();
+  const [rows, upcomingRows] = await Promise.all([
+    getDb()
+      .select({
+        calendar: calendars,
+        memberCount: count(calendarMembers.id),
+      })
+      .from(calendars)
+      .leftJoin(calendarMembers, eq(calendars.id, calendarMembers.calendarId))
+      .where(eq(calendars.schedulerId, schedulerId))
+      .groupBy(calendars.id)
+      .orderBy(desc(calendars.createdAt)),
+    getDb()
       .select({
         calendarId: meetings.calendarId,
         upcoming: count(),
       })
       .from(meetings)
+      .innerJoin(calendars, eq(meetings.calendarId, calendars.id))
       .where(
         and(
-          inArray(meetings.calendarId, calendarIds),
+          eq(calendars.schedulerId, schedulerId),
           gte(meetings.startsAt, nowIso),
           isNull(meetings.cancelledAt),
         ),
       )
-      .groupBy(meetings.calendarId);
+      .groupBy(meetings.calendarId),
+  ]);
 
-    for (const row of upcomingRows) {
-      upcomingByCalendar.set(row.calendarId, row.upcoming);
-    }
-  }
+  const items = rows.map((row) => toCalendar(row.calendar));
+  const memberCountByCalendar = new Map(
+    rows.map((row) => [row.calendar.id, row.memberCount]),
+  );
+  const upcomingByCalendar = new Map(
+    upcomingRows.map((row) => [row.calendarId, row.upcoming]),
+  );
 
   return (
     <PageContainer>

@@ -1,20 +1,25 @@
 "use client";
 
-import { publicBookingUrl } from "@/components/calendar-admin/validation";
 import { AlertBanner, Button, Dialog, Input, Label } from "@/components/ui";
 import type { Calendar } from "@/lib/types";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export type PublicLinkEditorProps = {
   calendarId: string;
   slug: string;
+  /**
+   * Public app origin computed on the server (`getAppUrl()`). APP_URL is not
+   * exposed to the browser, so the client must not derive it itself.
+   */
+  appUrl: string;
   showHeading?: boolean;
 };
 
 export function PublicLinkEditor({
   calendarId,
   slug: initialSlug,
+  appUrl,
   showHeading = true,
 }: PublicLinkEditorProps) {
   const router = useRouter();
@@ -23,11 +28,14 @@ export function PublicLinkEditor({
   const [saving, setSaving] = useState(false);
   const [randomizeOpen, setRandomizeOpen] = useState(false);
 
-  useEffect(() => {
+  // Re-sync when the server sends a new slug (e.g. after router.refresh()).
+  const [syncedSlug, setSyncedSlug] = useState(initialSlug);
+  if (syncedSlug !== initialSlug) {
+    setSyncedSlug(initialSlug);
     setSlug(initialSlug);
-  }, [initialSlug]);
+  }
 
-  const bookingUrl = publicBookingUrl(slug);
+  const bookingUrl = `${appUrl}/book/${slug}`;
   const isDirty = slug.trim().toLowerCase() !== initialSlug;
 
   async function patchSlug(body: { slug?: string; randomizeSlug?: boolean }) {

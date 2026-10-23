@@ -1,5 +1,6 @@
 import { ManageMeeting } from "@/components/booking/manage-meeting";
-import { PageHeader } from "@/components/ui";
+import { BookingFlowSkeleton } from "@/components/layout/route-skeletons";
+import { ClientOnly, PageHeader } from "@/components/ui";
 import { createAppDeps } from "@/lib/deps";
 import { validateManageToken } from "@/lib/booking/reschedule-meeting";
 import { toPublicMeeting } from "@/lib/booking/to-public-meeting";
@@ -40,22 +41,25 @@ export default async function ManageMeetingPage({ params }: PageProps) {
         title="Manage your meeting"
         subtitle="Reschedule or cancel your booking."
       />
-      <ManageMeeting
-        token={token}
-        initial={{
-          meeting: {
-            ...toPublicMeeting(meeting),
-            memberName: member?.displayName ?? member?.email ?? "Member",
-            cancelled: meeting.cancelledAt != null,
-          },
-          calendar: {
-            name: bundle.name,
-            durations: bundle.durations,
-            bookingWindowDays: bundle.bookingWindowDays,
-            minNoticeHours: bundle.minNoticeHours,
-          },
-        }}
-      />
+      {/* Meeting times and the reschedule picker use the viewer's timezone. */}
+      <ClientOnly fallback={<BookingFlowSkeleton />}>
+        <ManageMeeting
+          token={token}
+          initial={{
+            meeting: {
+              ...toPublicMeeting(meeting),
+              memberName: member?.displayName ?? member?.email ?? "Member",
+              cancelled: meeting.cancelledAt != null,
+            },
+            calendar: {
+              name: bundle.name,
+              durations: bundle.durations,
+              bookingWindowDays: bundle.bookingWindowDays,
+              minNoticeHours: bundle.minNoticeHours,
+            },
+          }}
+        />
+      </ClientOnly>
     </>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   CalendarBundle,
   CalendarMember,
@@ -70,7 +70,7 @@ function nowLinePercent(
   return position?.top ?? null;
 }
 
-function AvailabilityGridSkeleton({ viewMode }: { viewMode: ViewMode }) {
+export function AvailabilityGridSkeleton({ viewMode }: { viewMode: ViewMode }) {
   if (viewMode === "week") {
     return (
       <div
@@ -137,6 +137,7 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [configWarning, setConfigWarning] = useState<string | null>(null);
+  const latestRequestRef = useRef(0);
 
   useEffect(() => {
     if (initialParams.urlCorrection) {
@@ -205,6 +206,8 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
   const rangeEndIso = toUtcInstant(range.end);
 
   const loadData = useCallback(async () => {
+    const requestId = ++latestRequestRef.current;
+    const isStale = () => requestId !== latestRequestRef.current;
     setLoading(true);
     setError(null);
     setConfigWarning(null);
@@ -215,9 +218,17 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
         from: rangeStartIso,
         to: rangeEndIso,
       });
-      const response = await fetch(
-        `/api/calendars/${calendarId}/availability?${params.toString()}`,
-      );
+      // Member busy blocks and bookable slots are independent; load both at once.
+      const [response, slots] = await Promise.all([
+        fetch(`/api/calendars/${calendarId}/availability?${params.toString()}`),
+        fetchBookableSlots({
+          calendarId,
+          durationMinutes,
+          rangeStart: rangeStartIso,
+          rangeEnd: rangeEndIso,
+          viewerTimezone: timeZone,
+        }),
+      ]);
 
       if (!response.ok) {
         const body = (await response.json().catch(() => ({}))) as {
@@ -230,16 +241,12 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
         members: MemberBusyBlock[];
         warning?: string;
       };
+      // A newer date/view/duration request superseded this one.
+      if (isStale()) {
+        return;
+      }
       setBusyBlocks(data.members);
       setConfigWarning(data.warning ?? null);
-
-      const slots = await fetchBookableSlots({
-        calendarId,
-        durationMinutes,
-        rangeStart: rangeStartIso,
-        rangeEnd: rangeEndIso,
-        viewerTimezone: timeZone,
-      });
       setBookableSlots(slots);
 
       if (viewMode === "week") {
@@ -255,9 +262,13 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
         });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load data");
+      if (!isStale()) {
+        setError(err instanceof Error ? err.message : "Failed to load data");
+      }
     } finally {
-      setLoading(false);
+      if (!isStale()) {
+        setLoading(false);
+      }
     }
   }, [
     anchorDate,
@@ -269,10 +280,14 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
     viewMode,
   ]);
 
+  // Debounce rapid date/view changes, but load immediately on mount.
+  const hasLoadedRef = useRef(false);
   useEffect(() => {
+    const delay = hasLoadedRef.current ? LOAD_DEBOUNCE_MS : 0;
+    hasLoadedRef.current = true;
     const handle = window.setTimeout(() => {
       void loadData();
-    }, LOAD_DEBOUNCE_MS);
+    }, delay);
 
     return () => window.clearTimeout(handle);
   }, [loadData]);
@@ -332,7 +347,7 @@ export function AvailabilityGrid({ calendarId, bundle }: AvailabilityGridProps) 
         </AlertBanner>
       ) : null}
 
-      <div className="-mx-[var(--page-px)] flex min-h-0 flex-1 flex-col overflow-hidden border-y border-border bg-surface sm:mx-0 sm:rounded-lg sm:border">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-surface">
         {loading ? (
           <AvailabilityGridSkeleton viewMode={viewMode} />
         ) : viewMode === "week" ? (

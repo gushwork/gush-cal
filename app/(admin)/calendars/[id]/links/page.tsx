@@ -1,6 +1,9 @@
 import { LinksPanel } from "@/components/calendar-admin/links/links-panel";
 import { loadCalendarBundle } from "@/components/calendar-admin/load-calendar-bundle";
+import { getAppUrl } from "@/components/calendar-admin/validation";
 import { getSchedulerId } from "@/lib/auth";
+import { listBookingLinks } from "@/lib/booking-links/links";
+import { listTeams } from "@/lib/teams/teams";
 import { calendarPageTitle, pageTitle } from "@/lib/brand/metadata";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
@@ -29,7 +32,11 @@ export default async function CalendarLinksPage({ params }: PageProps) {
   }
 
   const { id } = await params;
-  const bundle = await loadCalendarBundle(id, schedulerId);
+  const [bundle, links, teams] = await Promise.all([
+    loadCalendarBundle(id, schedulerId),
+    listBookingLinks(id),
+    listTeams(id),
+  ]);
   if (!bundle) {
     notFound();
   }
@@ -39,6 +46,8 @@ export default async function CalendarLinksPage({ params }: PageProps) {
       calendarId={id}
       calendarName={bundle.name}
       members={bundle.members}
+      initialData={{ links, teams }}
+      appUrl={getAppUrl()}
     />
   );
 }

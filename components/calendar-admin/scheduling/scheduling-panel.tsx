@@ -1,6 +1,5 @@
 "use client";
 
-import { AdminPanelSkeleton } from "@/components/calendar-admin/admin-panel-skeleton";
 import { AlertBanner, Button, Label } from "@/components/ui";
 import { toast } from "@/components/ui/toast";
 import type { CalendarMember } from "@/lib/types";
@@ -11,14 +10,15 @@ import type {
   Team,
   TeamSelectionMode,
 } from "@/lib/types/platform";
-import { defaultCalendarSettings } from "@/lib/types/platform";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 
 type SchedulingPanelProps = {
   calendarId: string;
   calendarName: string;
   teams: Team[];
   members: CalendarMember[];
+  /** Server-loaded settings (same shape as the settings API GET). */
+  initialSettings: CalendarSettings;
 };
 
 const ASSIGNMENT_MODE_OPTIONS: {
@@ -87,57 +87,34 @@ function EnumSelect<T extends string>({
   );
 }
 
+function weightDraftsFor(members: CalendarMember[]): Record<string, string> {
+  return Object.fromEntries(
+    members.map((member) => [member.id, String(member.assignmentWeight)]),
+  );
+}
+
 export function SchedulingPanel({
   calendarId,
   calendarName,
   teams,
   members: initialMembers,
+  initialSettings,
 }: SchedulingPanelProps) {
-  const [settings, setSettings] = useState<CalendarSettings>(
-    defaultCalendarSettings(),
-  );
+  const [settings, setSettings] = useState<CalendarSettings>(initialSettings);
   const [members, setMembers] = useState(initialMembers);
-  const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({});
+  const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>(
+    () => weightDraftsFor(initialMembers),
+  );
+  // Re-sync when the server sends new Members (e.g. after router.refresh()).
+  const [syncedMembers, setSyncedMembers] = useState(initialMembers);
+  if (syncedMembers !== initialMembers) {
+    setSyncedMembers(initialMembers);
+    setMembers(initialMembers);
+    setWeightDrafts(weightDraftsFor(initialMembers));
+  }
   const [savingWeightId, setSavingWeightId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const loadSettings = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/calendars/${calendarId}/settings`);
-      const data = (await res.json()) as {
-        settings?: CalendarSettings;
-        error?: string;
-      };
-      if (!res.ok) {
-        throw new Error(data.error ?? "Failed to load settings");
-      }
-      setSettings(data.settings ?? defaultCalendarSettings());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load settings");
-    } finally {
-      setLoading(false);
-    }
-  }, [calendarId]);
-
-  useEffect(() => {
-    void loadSettings();
-  }, [loadSettings]);
-
-  useEffect(() => {
-    setWeightDrafts(
-      Object.fromEntries(
-        initialMembers.map((member) => [
-          member.id,
-          String(member.assignmentWeight),
-        ]),
-      ),
-    );
-    setMembers(initialMembers);
-  }, [initialMembers]);
 
   function patchScheduling<K extends keyof CalendarSettings["scheduling"]>(
     key: K,
@@ -239,158 +216,154 @@ export function SchedulingPanel({
         </AlertBanner>
       ) : null}
 
-      {loading ? (
-        <AdminPanelSkeleton section="scheduling" />
-      ) : (
-        <form
-          onSubmit={handleSave}
-          className="min-w-0 space-y-8 rounded-xl border border-neutral-100 bg-white p-4 shadow-s3 sm:p-6"
-        >
-          <section className="space-y-4">
-            <h2 className="font-grotesk text-lg font-medium text-neutral-900">
-              Member assignment
-            </h2>
-            <EnumSelect<AssignmentMode>
-              label="Assignment mode"
-              value={settings.scheduling.assignmentMode}
-              options={ASSIGNMENT_MODE_OPTIONS.map(({ value, label }) => ({
-                value,
-                label,
-              }))}
-              description={selectedMode?.description}
-              onChange={(value) => patchScheduling("assignmentMode", value)}
-            />
-          </section>
+      <form
+        onSubmit={handleSave}
+        className="min-w-0 space-y-8 rounded-xl border border-neutral-100 bg-white p-4 shadow-s3 sm:p-6"
+      >
+        <section className="space-y-4">
+          <h2 className="font-grotesk text-lg font-medium text-neutral-900">
+            Member assignment
+          </h2>
+          <EnumSelect<AssignmentMode>
+            label="Assignment mode"
+            value={settings.scheduling.assignmentMode}
+            options={ASSIGNMENT_MODE_OPTIONS.map(({ value, label }) => ({
+              value,
+              label,
+            }))}
+            description={selectedMode?.description}
+            onChange={(value) => patchScheduling("assignmentMode", value)}
+          />
+        </section>
 
+        <section className="space-y-4 border-t border-neutral-100 pt-6">
+          <h2 className="font-grotesk text-lg font-medium text-neutral-900">
+            Team pool
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <EnumSelect<TeamSelectionMode>
+              label="Team selection mode"
+              value={settings.scheduling.teamSelectionMode}
+              options={[
+                { value: "url_only", label: "URL only" },
+                { value: "url_with_default", label: "URL with default team" },
+              ]}
+              onChange={(value) => patchScheduling("teamSelectionMode", value)}
+            />
+            <Label className="block space-y-1.5">
+              Default team
+              <select
+                value={settings.scheduling.defaultTeamId ?? ""}
+                onChange={(e) =>
+                  patchScheduling(
+                    "defaultTeamId",
+                    e.target.value ? e.target.value : null,
+                  )
+                }
+                className="w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm"
+              >
+                <option value="">None</option>
+                {teams.map((team) => (
+                  <option key={team.id} value={team.id}>
+                    {team.name}
+                  </option>
+                ))}
+              </select>
+            </Label>
+          </div>
+        </section>
+
+        <section className="space-y-4 border-t border-neutral-100 pt-6">
+          <h2 className="font-grotesk text-lg font-medium text-neutral-900">
+            Reschedule
+          </h2>
+          <EnumSelect<RescheduleAssignmentMode>
+            label="Reschedule assignment"
+            value={settings.scheduling.rescheduleAssignment}
+            options={[
+              { value: "keep_member", label: "Keep member" },
+              { value: "rerun_round_robin", label: "Re-run assignment" },
+            ]}
+            description="When rescheduling, keep the same member or run the configured assignment mode again."
+            onChange={(value) => patchScheduling("rescheduleAssignment", value)}
+          />
+        </section>
+
+        {settings.scheduling.assignmentMode === "weighted_round_robin" ? (
           <section className="space-y-4 border-t border-neutral-100 pt-6">
-            <h2 className="font-grotesk text-lg font-medium text-neutral-900">
-              Team pool
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <EnumSelect<TeamSelectionMode>
-                label="Team selection mode"
-                value={settings.scheduling.teamSelectionMode}
-                options={[
-                  { value: "url_only", label: "URL only" },
-                  { value: "url_with_default", label: "URL with default team" },
-                ]}
-                onChange={(value) => patchScheduling("teamSelectionMode", value)}
-              />
-              <Label className="block space-y-1.5">
-                Default team
-                <select
-                  value={settings.scheduling.defaultTeamId ?? ""}
-                  onChange={(e) =>
-                    patchScheduling(
-                      "defaultTeamId",
-                      e.target.value ? e.target.value : null,
-                    )
-                  }
-                  className="w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm"
-                >
-                  <option value="">None</option>
-                  {teams.map((team) => (
-                    <option key={team.id} value={team.id}>
-                      {team.name}
-                    </option>
+            <div>
+              <h2 className="font-grotesk text-lg font-medium text-neutral-900">
+                Member weights
+              </h2>
+              <p className="mt-1 text-sm text-neutral-500">
+                Higher weight receives a larger share of bookings.
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[32rem] text-left text-sm">
+                <thead>
+                  <tr className="border-y border-neutral-100 bg-neutral-25 text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                    <th className="px-3 py-2">Member</th>
+                    <th className="px-3 py-2">Email</th>
+                    <th className="px-3 py-2">Weight</th>
+                    <th className="px-3 py-2" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {members.map((member) => (
+                    <tr
+                      key={member.id}
+                      className="border-b border-neutral-100 last:border-0 hover:bg-neutral-25"
+                    >
+                      <td className="px-3 py-2 font-medium text-neutral-900">
+                        {member.displayName ?? member.email}
+                      </td>
+                      <td className="px-3 py-2 text-neutral-600">
+                        {member.email}
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="number"
+                          min={1}
+                          max={1000}
+                          value={weightDrafts[member.id] ?? "100"}
+                          onChange={(e) =>
+                            setWeightDrafts((current) => ({
+                              ...current,
+                              [member.id]: e.target.value,
+                            }))
+                          }
+                          className="w-24 rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          loading={savingWeightId === member.id}
+                          loadingLabel="Saving…"
+                          onClick={() => void saveMemberWeight(member.id)}
+                        >
+                          Save
+                        </Button>
+                      </td>
+                    </tr>
                   ))}
-                </select>
-              </Label>
+                </tbody>
+              </table>
             </div>
           </section>
+        ) : null}
 
-          <section className="space-y-4 border-t border-neutral-100 pt-6">
-            <h2 className="font-grotesk text-lg font-medium text-neutral-900">
-              Reschedule
-            </h2>
-            <EnumSelect<RescheduleAssignmentMode>
-              label="Reschedule assignment"
-              value={settings.scheduling.rescheduleAssignment}
-              options={[
-                { value: "keep_member", label: "Keep member" },
-                { value: "rerun_round_robin", label: "Re-run assignment" },
-              ]}
-              description="When rescheduling, keep the same member or run the configured assignment mode again."
-              onChange={(value) => patchScheduling("rescheduleAssignment", value)}
-            />
-          </section>
-
-          {settings.scheduling.assignmentMode === "weighted_round_robin" ? (
-            <section className="space-y-4 border-t border-neutral-100 pt-6">
-              <div>
-                <h2 className="font-grotesk text-lg font-medium text-neutral-900">
-                  Member weights
-                </h2>
-                <p className="mt-1 text-sm text-neutral-500">
-                  Higher weight receives a larger share of bookings.
-                </p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[32rem] text-left text-sm">
-                  <thead>
-                    <tr className="border-y border-neutral-100 bg-neutral-25 text-xs font-semibold uppercase tracking-wide text-neutral-600">
-                      <th className="px-3 py-2">Member</th>
-                      <th className="px-3 py-2">Email</th>
-                      <th className="px-3 py-2">Weight</th>
-                      <th className="px-3 py-2" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {members.map((member) => (
-                      <tr
-                        key={member.id}
-                        className="border-b border-neutral-100 last:border-0 hover:bg-neutral-25"
-                      >
-                        <td className="px-3 py-2 font-medium text-neutral-900">
-                          {member.displayName ?? member.email}
-                        </td>
-                        <td className="px-3 py-2 text-neutral-600">
-                          {member.email}
-                        </td>
-                        <td className="px-3 py-2">
-                          <input
-                            type="number"
-                            min={1}
-                            max={1000}
-                            value={weightDrafts[member.id] ?? "100"}
-                            onChange={(e) =>
-                              setWeightDrafts((current) => ({
-                                ...current,
-                                [member.id]: e.target.value,
-                              }))
-                            }
-                            className="w-24 rounded-md border border-neutral-200 bg-white px-2 py-1.5 text-sm"
-                          />
-                        </td>
-                        <td className="px-3 py-2 text-right">
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            loading={savingWeightId === member.id}
-                            loadingLabel="Saving…"
-                            onClick={() => void saveMemberWeight(member.id)}
-                          >
-                            Save
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          ) : null}
-
-          <Button
-            type="submit"
-            loading={saving}
-            loadingLabel="Saving scheduling…"
-          >
-            Save scheduling
-          </Button>
-        </form>
-      )}
+        <Button
+          type="submit"
+          loading={saving}
+          loadingLabel="Saving scheduling…"
+        >
+          Save scheduling
+        </Button>
+      </form>
     </div>
   );
 }

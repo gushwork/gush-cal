@@ -2,9 +2,16 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import type { AppDatabase } from "@/lib/db/client";
 import { calendarSettings } from "@/lib/db/schema";
-import type { CalendarSchedulingSettings } from "@/lib/types/platform";
+import type {
+  CalendarSchedulingSettings,
+  CalendarSettings,
+} from "@/lib/types/platform";
+import { defaultCalendarSettings } from "@/lib/types/platform";
 import { defaultSchedulingSettings } from "./pool-key";
-import { normalizeCalendarSettings } from "./normalize-settings";
+import {
+  clientCalendarSettings,
+  normalizeCalendarSettings,
+} from "./normalize-settings";
 
 let dbOverride: AppDatabase | null = null;
 
@@ -31,6 +38,21 @@ export async function loadCalendarSchedulingSettings(
   }
 
   return normalizeCalendarSettings(row.settings).scheduling;
+}
+
+/** Full Calendar settings as returned by the admin settings API (server-managed maps omitted). */
+export async function loadClientCalendarSettings(
+  calendarId: string,
+): Promise<CalendarSettings> {
+  const [row] = await db()
+    .select()
+    .from(calendarSettings)
+    .where(eq(calendarSettings.calendarId, calendarId))
+    .limit(1);
+
+  return clientCalendarSettings(
+    normalizeCalendarSettings(row?.settings ?? defaultCalendarSettings()),
+  );
 }
 
 export async function loadAndUpdateSchedulingSettings(

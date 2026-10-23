@@ -2,6 +2,7 @@
 
 import { Label } from "@/components/ui";
 import type { IanaTimezone } from "@/lib/types";
+import { useIsClient } from "@/lib/ui/use-is-client";
 
 const FALLBACK_TIMEZONES: IanaTimezone[] = [
   "UTC",
@@ -60,7 +61,10 @@ export function TimezoneSelect({
   label = "Timezone",
   disabled = false,
 }: TimezoneSelectProps) {
-  const options = buildTimezoneOptions(value);
+  // The option list depends on the browser (its timezone and ICU data), so
+  // server HTML renders only the selected value to keep hydration consistent.
+  const isClient = useIsClient();
+  const options = isClient ? buildTimezoneOptions(value) : [value];
 
   return (
     <Label className="block space-y-1.5">

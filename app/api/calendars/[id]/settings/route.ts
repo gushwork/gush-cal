@@ -11,6 +11,7 @@ import {
   mergeCalendarSettings,
   normalizeCalendarSettings,
 } from "@/lib/scheduling/normalize-settings";
+import { loadClientCalendarSettings } from "@/lib/scheduling/load-scheduling-settings";
 import type { CalendarSettings } from "@/lib/types/platform";
 import { defaultCalendarSettings } from "@/lib/types/platform";
 
@@ -42,18 +43,8 @@ export async function GET(_request: Request, { params }: RouteParams) {
     return jsonError("Calendar not found", 404);
   }
 
-  const [row] = await getDb()
-    .select()
-    .from(calendarSettings)
-    .where(eq(calendarSettings.calendarId, calendarId))
-    .limit(1);
-
-  const settings = normalizeCalendarSettings(
-    row?.settings ?? defaultCalendarSettings(),
-  );
-
   return NextResponse.json({
-    settings: clientCalendarSettings(settings),
+    settings: await loadClientCalendarSettings(calendarId),
   });
 }
 

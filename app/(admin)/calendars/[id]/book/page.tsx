@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { BookingFlow } from "@/components/booking/booking-flow";
+import { BookingFlowSkeleton } from "@/components/layout/route-skeletons";
 import { loadCalendarBundle } from "@/components/calendar-admin/load-calendar-bundle";
-import { Button, PageHeader } from "@/components/ui";
+import { Button, ClientOnly, PageHeader } from "@/components/ui";
 import { getSchedulerId } from "@/lib/auth";
 import { calendarPageTitle, pageTitle } from "@/lib/brand/metadata";
 import type { Metadata } from "next";
@@ -51,19 +52,17 @@ export default async function AdminBookPage({ params }: PageProps) {
         }
       />
 
-      <Suspense
-        fallback={
-          <div className="py-12 text-sm text-ink-muted">Loading booking…</div>
-        }
-      >
-        <BookingFlow
-          calendarName={bundle.name}
-          durations={bundle.durations}
-          bookingWindowDays={bundle.bookingWindowDays}
-          slotsApiPath={`/api/calendars/${id}/slots`}
-          confirmApiPath={`/api/calendars/${id}/book`}
-          showPanelistCount
-        />
+      <Suspense fallback={<BookingFlowSkeleton />}>
+        <ClientOnly fallback={<BookingFlowSkeleton />}>
+          <BookingFlow
+            calendarName={bundle.name}
+            durations={bundle.durations}
+            bookingWindowDays={bundle.bookingWindowDays}
+            slotsApiPath={`/api/calendars/${id}/slots`}
+            confirmApiPath={`/api/calendars/${id}/book`}
+            showPanelistCount
+          />
+        </ClientOnly>
       </Suspense>
     </>
   );

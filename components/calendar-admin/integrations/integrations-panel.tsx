@@ -1,6 +1,5 @@
 "use client";
 
-import { AdminPanelSkeleton } from "@/components/calendar-admin/admin-panel-skeleton";
 import { AlertBanner, Button, Checkbox, Input, Label } from "@/components/ui";
 import { toast } from "@/components/ui/toast";
 import type {
@@ -9,7 +8,8 @@ import type {
   SalesforceEventType,
   SalesforceFieldMap,
 } from "@/lib/types/platform";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { usePendingAction } from "@/lib/ui/use-pending-action";
 
 type ConnectionStatus = {
   connected: boolean;
@@ -71,6 +71,12 @@ type WebhookDraft = {
 type IntegrationsPanelProps = {
   calendarId: string;
   calendarName: string;
+  /** Server-loaded data for the first render; reloads after mutations. */
+  initialData: {
+    salesforce: ConnectionStatus;
+    fieldMaps: SalesforceFieldMap[];
+    webhooks: WebhookEndpoint[];
+  };
 };
 
 function FieldMapForm({
@@ -301,11 +307,12 @@ function mapToDraft(map: SalesforceFieldMap): FieldMapDraft {
 export function IntegrationsPanel({
   calendarId,
   calendarName,
+  initialData,
 }: IntegrationsPanelProps) {
-  const [sfStatus, setSfStatus] = useState<ConnectionStatus>({ connected: false });
-  const [fieldMaps, setFieldMaps] = useState<SalesforceFieldMap[]>([]);
-  const [webhooks, setWebhooks] = useState<WebhookEndpoint[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { pendingKey, run } = usePendingAction();
+  const [sfStatus, setSfStatus] = useState(initialData.salesforce);
+  const [fieldMaps, setFieldMaps] = useState(initialData.fieldMaps);
+  const [webhooks, setWebhooks] = useState(initialData.webhooks);
   const [error, setError] = useState<string | null>(null);
   const [showCreateMap, setShowCreateMap] = useState(false);
   const [editingMapId, setEditingMapId] = useState<string | null>(null);
@@ -327,7 +334,6 @@ export function IntegrationsPanel({
   const [saving, setSaving] = useState(false);
 
   const loadAll = useCallback(async () => {
-    setLoading(true);
     setError(null);
     try {
       const [sfRes, mapsRes, hooksRes] = await Promise.all([
@@ -347,14 +353,8 @@ export function IntegrationsPanel({
       setWebhooks(hooksData.endpoints ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load integrations");
-    } finally {
-      setLoading(false);
     }
   }, [calendarId]);
-
-  useEffect(() => {
-    void loadAll();
-  }, [loadAll]);
 
   async function connectSalesforce(stub = false) {
     if (stub) {
@@ -374,15 +374,17 @@ export function IntegrationsPanel({
   }
 
   async function disconnectSalesforce() {
-    const res = await fetch(`/api/calendars/${calendarId}/salesforce`, {
-      method: "DELETE",
+    await run("salesforce:disconnect", async () => {
+      const res = await fetch(`/api/calendars/${calendarId}/salesforce`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        toast("Failed to disconnect", { variant: "error" });
+        return;
+      }
+      toast("Salesforce disconnected", { variant: "success" });
+      await loadAll();
     });
-    if (!res.ok) {
-      toast("Failed to disconnect", { variant: "error" });
-      return;
-    }
-    toast("Salesforce disconnected", { variant: "success" });
-    await loadAll();
   }
 
   async function createFieldMap(e: React.FormEvent) {
@@ -456,19 +458,21 @@ export function IntegrationsPanel({
     ) {
       return;
     }
-    const res = await fetch(
-      `/api/calendars/${calendarId}/salesforce/field-maps/${map.id}`,
-      { method: "DELETE" },
-    );
-    if (!res.ok) {
-      toast("Failed to delete field map", { variant: "error" });
-      return;
-    }
-    toast("Field map deleted", { variant: "success" });
-    if (editingMapId === map.id) {
-      cancelEditMap();
-    }
-    await loadAll();
+    await run(`delete-map:${map.id}`, async () => {
+      const res = await fetch(
+        `/api/calendars/${calendarId}/salesforce/field-maps/${map.id}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) {
+        toast("Failed to delete field map", { variant: "error" });
+        return;
+      }
+      toast("Field map deleted", { variant: "success" });
+      if (editingMapId === map.id) {
+        cancelEditMap();
+      }
+      await loadAll();
+    });
   }
 
   async function createWebhook(e: React.FormEvent) {
@@ -537,41 +541,45 @@ export function IntegrationsPanel({
   }
 
   async function toggleWebhookEnabled(hook: WebhookEndpoint) {
-    const res = await fetch(
-      `/api/calendars/${calendarId}/webhooks/${hook.id}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: !hook.enabled }),
-      },
-    );
-    if (!res.ok) {
-      toast("Failed to update webhook", { variant: "error" });
-      return;
-    }
-    toast(hook.enabled ? "Webhook disabled" : "Webhook enabled", {
-      variant: "success",
+    await run(`toggle-hook:${hook.id}`, async () => {
+      const res = await fetch(
+        `/api/calendars/${calendarId}/webhooks/${hook.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled: !hook.enabled }),
+        },
+      );
+      if (!res.ok) {
+        toast("Failed to update webhook", { variant: "error" });
+        return;
+      }
+      toast(hook.enabled ? "Webhook disabled" : "Webhook enabled", {
+        variant: "success",
+      });
+      await loadAll();
     });
-    await loadAll();
   }
 
   async function deleteWebhook(hook: WebhookEndpoint) {
     if (!window.confirm(`Delete webhook ${hook.url}?`)) {
       return;
     }
-    const res = await fetch(
-      `/api/calendars/${calendarId}/webhooks/${hook.id}`,
-      { method: "DELETE" },
-    );
-    if (!res.ok) {
-      toast("Failed to delete webhook", { variant: "error" });
-      return;
-    }
-    toast("Webhook deleted", { variant: "success" });
-    if (editingWebhookId === hook.id) {
-      cancelEditWebhook();
-    }
-    await loadAll();
+    await run(`delete-hook:${hook.id}`, async () => {
+      const res = await fetch(
+        `/api/calendars/${calendarId}/webhooks/${hook.id}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) {
+        toast("Failed to delete webhook", { variant: "error" });
+        return;
+      }
+      toast("Webhook deleted", { variant: "success" });
+      if (editingWebhookId === hook.id) {
+        cancelEditWebhook();
+      }
+      await loadAll();
+    });
   }
 
   return (
@@ -591,9 +599,7 @@ export function IntegrationsPanel({
         </AlertBanner>
       ) : null}
 
-      {loading ? (
-        <AdminPanelSkeleton section="integrations" />
-      ) : (
+      {(
         <div className="space-y-8">
           <section className="rounded-xl border border-neutral-100 bg-white p-4 shadow-s3">
             <h2 className="font-grotesk text-lg font-medium text-neutral-900">
@@ -607,6 +613,9 @@ export function IntegrationsPanel({
                 <Button
                   type="button"
                   variant="secondary"
+                  loading={pendingKey === "salesforce:disconnect"}
+                  loadingLabel="Disconnecting…"
+                  disabled={pendingKey !== null}
                   onClick={() => void disconnectSalesforce()}
                 >
                   Disconnect
@@ -682,6 +691,9 @@ export function IntegrationsPanel({
                             type="button"
                             variant="secondary"
                             size="sm"
+                            loading={pendingKey === `delete-map:${map.id}`}
+                            loadingLabel="Deleting…"
+                            disabled={pendingKey !== null}
                             onClick={() => void deleteFieldMap(map)}
                           >
                             Delete
@@ -755,6 +767,7 @@ export function IntegrationsPanel({
                           <label className="flex items-center gap-1.5 text-sm text-neutral-600">
                             <Checkbox
                               checked={hook.enabled}
+                              disabled={pendingKey !== null}
                               onChange={() => void toggleWebhookEnabled(hook)}
                             />
                             {hook.enabled ? "Enabled" : "Disabled"}
@@ -771,6 +784,9 @@ export function IntegrationsPanel({
                             type="button"
                             variant="secondary"
                             size="sm"
+                            loading={pendingKey === `delete-hook:${hook.id}`}
+                            loadingLabel="Deleting…"
+                            disabled={pendingKey !== null}
                             onClick={() => void deleteWebhook(hook)}
                           >
                             Delete

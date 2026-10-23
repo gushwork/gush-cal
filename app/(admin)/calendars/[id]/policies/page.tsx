@@ -1,6 +1,7 @@
 import { PoliciesPanel } from "@/components/calendar-admin/policies/policies-panel";
 import { loadCalendarBundle } from "@/components/calendar-admin/load-calendar-bundle";
 import { getSchedulerId } from "@/lib/auth";
+import { loadClientCalendarSettings } from "@/lib/scheduling/load-scheduling-settings";
 import { calendarPageTitle, pageTitle } from "@/lib/brand/metadata";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
@@ -29,12 +30,19 @@ export default async function CalendarPoliciesPage({ params }: PageProps) {
   }
 
   const { id } = await params;
-  const bundle = await loadCalendarBundle(id, schedulerId);
+  const [bundle, settings] = await Promise.all([
+    loadCalendarBundle(id, schedulerId),
+    loadClientCalendarSettings(id),
+  ]);
   if (!bundle) {
     notFound();
   }
 
   return (
-    <PoliciesPanel calendarId={id} calendarName={bundle.name} />
+    <PoliciesPanel
+      calendarId={id}
+      calendarName={bundle.name}
+      initialSettings={settings}
+    />
   );
 }
