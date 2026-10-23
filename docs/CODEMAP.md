@@ -171,6 +171,14 @@ Important invariant: Scheduler OAuth is identity only. Calendar API reads/writes
 - Global tokens/styles: `app/globals.css`.
 - Toasts: `components/ui/toast.ts`, `components/ui/toaster.tsx`.
 
+### Loading and data
+
+- Route loading/error boundaries: `app/(admin)/calendars/{loading,error}.tsx` (full page), `app/(admin)/calendars/[id]/{loading,error}.tsx` (content pane; header + sidebar stay mounted), `app/book/[slug]/{loading,error}.tsx`, `app/manage/[token]/{loading,error}.tsx`.
+- Shared skeletons: `components/layout/route-skeletons.tsx` (also `BookingFlowSkeleton`); error UI: `components/layout/route-error.tsx`; panel skeleton: `components/calendar-admin/admin-panel-skeleton.tsx`.
+- Admin panels receive server-loaded `initial*` props from their page (`teams`, `links`, `scheduling`, `policies`, `integrations`, `api-keys`, `sequences`, `meetings`); client `load*()` functions only reload after mutations. Settings shape shared with the API: `loadClientCalendarSettings()` in `lib/scheduling/load-scheduling-settings.ts`. Public booking metadata: `lib/booking/public-booking-metadata.ts` (used by `app/book/[slug]/page.tsx` and `app/api/book/[slug]/route.ts`).
+- Hydration safety: `lib/ui/use-is-client.ts`, `components/ui/client-only.tsx` (booking wizard, availability grid, manage page), `components/ui/local-date-time.tsx`. Server-only env (`APP_URL`) reaches client components as an `appUrl` prop.
+- Guidance and verification scripts: `.agents/skills/page-loading-performance/`.
+
 ## Tests And Commands
 
 Commands from `package.json`:

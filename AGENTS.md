@@ -38,8 +38,19 @@ Keep documentation concise, factual, and aligned with the code as it exists afte
 - Scheduler OAuth is identity only; Google Calendar API access uses domain-wide delegation.
 - Public booking uses guest policy; Scheduler/admin booking uses admin policy.
 - Slot display and assignment must respect the slot engine invariants documented in `CONTEXT.md`.
+- Pages must stay fast and hydration-safe: route `loading.tsx`/`error.tsx`, server-preloaded panel data (no mount fetches), nothing clock/locale/timezone-dependent rendered on the server. Follow `.agents/skills/page-loading-performance/SKILL.md` when adding or changing pages, panels, data fetching, or date/time UI.
 
 ## Verification
 
 - Documentation-only changes do not require app tests unless they include executable examples or code changes.
 - Code changes should run the closest relevant tests first, then broader suites when risk warrants it.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
