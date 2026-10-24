@@ -1,6 +1,7 @@
 import { ApiKeysPanel } from "@/components/calendar-admin/api-keys/api-keys-panel";
 import { loadCalendarBundle } from "@/components/calendar-admin/load-calendar-bundle";
 import { getSchedulerId } from "@/lib/auth";
+import { listApiKeys } from "@/lib/events/api-keys";
 import { calendarPageTitle, pageTitle } from "@/lib/brand/metadata";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
@@ -29,10 +30,19 @@ export default async function CalendarApiKeysPage({ params }: PageProps) {
   }
 
   const { id } = await params;
-  const bundle = await loadCalendarBundle(id, schedulerId);
+  const [bundle, keys] = await Promise.all([
+    loadCalendarBundle(id, schedulerId),
+    listApiKeys(id),
+  ]);
   if (!bundle) {
     notFound();
   }
 
-  return <ApiKeysPanel calendarId={id} calendarName={bundle.name} />;
+  return (
+    <ApiKeysPanel
+      calendarId={id}
+      calendarName={bundle.name}
+      initialKeys={keys}
+    />
+  );
 }

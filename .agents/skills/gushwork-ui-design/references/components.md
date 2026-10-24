@@ -276,9 +276,19 @@ Render the gate and the app side by side; toggle by breakpoint. Below `lg`
   focus-visible:ring-[3px]`. **Disabled**: `disabled:pointer-events-none
   disabled:opacity-50`. **SVG auto-size** in buttons: `[&_svg:not([class*='size-'])]:size-4`.
 - **Hydration-safe client time** ("Last updated"): a `'use client'` component that
-  formats `new Date(iso).toLocaleString(undefined, { dateStyle:'medium',
-  timeStyle:'short' })` in a `useEffect` (render a `…` placeholder first) so the
-  server (UTC) and client (local tz) don't mismatch. Wrap in `suppressHydrationWarning`.
+  renders a `…` placeholder until hydration, then formats
+  `new Date(iso).toLocaleString(undefined, { dateStyle:'medium', timeStyle:'short' })`
+  so the server (UTC) and client (local tz) never mismatch. Detect hydration with
+  `useSyncExternalStore(() => () => {}, () => true, () => false)` rather than
+  `useEffect` + `setState` (flagged by `react-hooks/set-state-in-effect`). Don't
+  rely on `suppressHydrationWarning`: React keeps the server text, so the UTC time
+  stays on screen. Whole time-dependent widgets (date pickers, slot grids) get the
+  same treatment: render a skeleton until hydrated.
+- **Loading states are skeletons in the final layout's shape** (`animate-pulse`/
+  `.gradient-pendulum-x` blocks inside the same `rounded-xl border-neutral-100`
+  card), shown by a route-level `loading.tsx` so navigation responds instantly.
+  Avoid blank areas, centered spinners, and swapping loaded content back to a
+  skeleton on refresh; show pending state on the button that triggered it.
 - **Graceful empty states** everywhere data can be absent (`text-neutral-400`
   centered message inside the card), so a failing data source never blanks the page.
 - **Metadata**: title `'Gushwork AI'`, `icons.icon` = the gushwork.ai favicon SVG

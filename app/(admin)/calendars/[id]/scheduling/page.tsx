@@ -1,6 +1,7 @@
 import { SchedulingPanel } from "@/components/calendar-admin/scheduling/scheduling-panel";
 import { loadCalendarBundle } from "@/components/calendar-admin/load-calendar-bundle";
 import { getSchedulerId } from "@/lib/auth";
+import { loadClientCalendarSettings } from "@/lib/scheduling/load-scheduling-settings";
 import { calendarPageTitle, pageTitle } from "@/lib/brand/metadata";
 import { listTeams } from "@/lib/teams/teams";
 import type { Metadata } from "next";
@@ -30,12 +31,14 @@ export default async function CalendarSchedulingPage({ params }: PageProps) {
   }
 
   const { id } = await params;
-  const bundle = await loadCalendarBundle(id, schedulerId);
+  const [bundle, teams, settings] = await Promise.all([
+    loadCalendarBundle(id, schedulerId),
+    listTeams(id),
+    loadClientCalendarSettings(id),
+  ]);
   if (!bundle) {
     notFound();
   }
-
-  const teams = await listTeams(id);
 
   return (
     <SchedulingPanel
@@ -43,6 +46,7 @@ export default async function CalendarSchedulingPage({ params }: PageProps) {
       calendarName={bundle.name}
       teams={teams}
       members={bundle.members}
+      initialSettings={settings}
     />
   );
 }

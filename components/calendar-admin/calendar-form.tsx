@@ -17,6 +17,7 @@ import { ALLOWED_DURATIONS } from "@/lib/constants";
 import type { Calendar, IanaTimezone, WorkingHours } from "@/lib/types";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useIsClient } from "@/lib/ui/use-is-client";
 import { DEFAULT_WORKING_HOURS } from "./validation";
 
 type CalendarFormProps =
@@ -95,9 +96,13 @@ export function CalendarForm(props: CalendarFormProps) {
   const [defaultWorkingHours, setDefaultWorkingHours] = useState<WorkingHours>(
     initial?.defaultWorkingHours ?? DEFAULT_WORKING_HOURS,
   );
-  const [timezone, setTimezone] = useState<IanaTimezone>(
-    initial?.timezone ?? getBrowserTimezone(),
+  // New Calendars default to the browser timezone, resolved after hydration so
+  // server HTML (rendered in UTC) matches the first client render.
+  const isClient = useIsClient();
+  const [timezoneChoice, setTimezone] = useState<IanaTimezone | null>(
+    initial?.timezone ?? null,
   );
+  const timezone = timezoneChoice ?? (isClient ? getBrowserTimezone() : "UTC");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 

@@ -81,7 +81,7 @@ test.describe("public booking API", () => {
     const res = await request.fetch(`/api/book/${e2eSlug}/confirm`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: "{",
+      data: Buffer.from("{"),
     });
     expect(res.status()).toBe(400);
     await expect(res.json()).resolves.toMatchObject({

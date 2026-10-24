@@ -3,7 +3,7 @@
 import { AlertBanner, Button, Input } from "@/components/ui";
 import { cn } from "@/lib/ui/cn";
 import { Pencil } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export type SlugEditorProps = {
   value: string;
@@ -25,9 +25,12 @@ export function SlugEditor({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  // Re-sync when the parent passes a new slug (e.g. after a reload).
+  const [syncedValue, setSyncedValue] = useState(initialValue);
+  if (syncedValue !== initialValue) {
+    setSyncedValue(initialValue);
     setSlug(initialValue);
-  }, [initialValue]);
+  }
 
   const isDirty = slug.trim().toLowerCase() !== initialValue;
 

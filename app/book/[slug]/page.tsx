@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { BookingFlow } from "@/components/booking/booking-flow";
+import { BookingFlowSkeleton } from "@/components/layout/route-skeletons";
 import { PageContainer } from "@/components/layout/page-container";
-import { PageHeader } from "@/components/ui";
+import { ClientOnly, PageHeader } from "@/components/ui";
 import { publicBookingUrl } from "@/components/calendar-admin/validation";
 import { loadCalendarBundleBySlug } from "@/lib/booking/load-calendar-by-slug";
+import { loadPublicBookingMetadata } from "@/lib/booking/public-booking-metadata";
 import { toPublicCalendar } from "@/lib/booking/to-public-meeting";
 import { getSiteName, pageTitle } from "@/lib/brand/metadata";
 import type { PublicCalendar } from "@/lib/types";
@@ -59,6 +61,7 @@ export default async function PublicBookPage({ params }: PageProps) {
   }
 
   const calendar = toPublicCalendar(bundle);
+  const metadata = await loadPublicBookingMetadata(bundle.id);
 
   return (
     <PageContainer variant="booking">
@@ -67,20 +70,22 @@ export default async function PublicBookPage({ params }: PageProps) {
         subtitle={publicBookPageSubtitle(calendar)}
       />
 
-      <Suspense
-        fallback={
-          <div className="py-12 text-sm text-ink-muted">Loading booking…</div>
-        }
-      >
-        <BookingFlow
-          calendarName={calendar.name}
-          durations={calendar.durations}
-          bookingWindowDays={calendar.bookingWindowDays}
-          slotsApiPath={`/api/book/${slug}/slots`}
-          confirmApiPath={`/api/book/${slug}/confirm`}
-          isPublic
-          showPanelistCount={false}
-        />
+      <Suspense fallback={<BookingFlowSkeleton />}>
+        <ClientOnly fallback={<BookingFlowSkeleton />}>
+          <BookingFlow
+            calendarName={calendar.name}
+            durations={calendar.durations}
+            bookingWindowDays={calendar.bookingWindowDays}
+            slotsApiPath={`/api/book/${slug}/slots`}
+            confirmApiPath={`/api/book/${slug}/confirm`}
+            isPublic
+            showPanelistCount={false}
+            initialMetadata={{
+              teams: metadata.teams,
+              teamSelectionMode: metadata.settings?.teamSelectionMode ?? null,
+            }}
+          />
+        </ClientOnly>
       </Suspense>
     </PageContainer>
   );

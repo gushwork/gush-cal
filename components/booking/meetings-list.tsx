@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { MeetingCard } from "@/components/booking/meeting-card";
 import { MeetingsTable } from "@/components/booking/meetings-table";
 import { Button, Card, Dialog, EmptyState, Skeleton } from "@/components/ui";
 import { toast } from "@/components/ui/toast";
 import type { Meeting } from "@/lib/types";
+import { useIsClient } from "@/lib/ui/use-is-client";
 
 type MeetingsListProps = {
   calendarId: string;
   memberNames: Record<string, string>;
-  initialMeetings?: Meeting[];
+  /** Server-loaded Meetings; the list renders them after hydration. */
+  initialMeetings: Meeting[];
 };
 
 const SKELETON_COUNT = 4;
@@ -160,44 +162,13 @@ function MeetingsCards({
 export function MeetingsList({
   calendarId,
   memberNames,
-  initialMeetings = [],
+  initialMeetings,
 }: MeetingsListProps) {
+  const isClient = useIsClient();
   const [meetings, setMeetings] = useState<Meeting[]>(initialMeetings);
-  const [loading, setLoading] = useState(initialMeetings.length === 0);
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
-
-  const loadMeetings = useCallback(
-    async (background = false) => {
-      if (!background) {
-        setLoading(true);
-      }
-      setError(null);
-      try {
-        const res = await fetch(`/api/calendars/${calendarId}/meetings`);
-        const data = (await res.json()) as {
-          meetings?: Meeting[];
-          error?: string;
-        };
-        if (!res.ok) {
-          throw new Error(data.error ?? "Failed to load meetings");
-        }
-        setMeetings(data.meetings ?? []);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load meetings");
-      } finally {
-        if (!background) {
-          setLoading(false);
-        }
-      }
-    },
-    [calendarId],
-  );
-
-  useEffect(() => {
-    void loadMeetings(initialMeetings.length > 0);
-  }, [initialMeetings.length, loadMeetings]);
 
   function handleCancelRequest(meetingId: string) {
     setError(null);
@@ -236,7 +207,9 @@ export function MeetingsList({
     ? meetings.find((m) => m.id === confirmCancelId)
     : null;
 
-  if (loading) {
+  // Times, relative labels and upcoming/past grouping depend on the viewer's
+  // clock and timezone, so the list renders after hydration (no refetch).
+  if (!isClient) {
     return <MeetingsListSkeleton />;
   }
 

@@ -155,7 +155,7 @@ test.describe("api-v1 auth + validation", () => {
     const res = await request.fetch(base, {
       method: "POST",
       headers: { ...bearer(e2e.apiKeyPlaintext), "Content-Type": "application/json" },
-      body: "{",
+      data: Buffer.from("{"),
     });
     expect(res.status()).toBe(400);
     await expect(res.json()).resolves.toMatchObject({ error: "Invalid JSON body" });
@@ -195,7 +195,7 @@ test.describe("api-v1 auth + validation", () => {
     const res = await request.fetch(reschedulePath(e2e.meetingId), {
       method: "POST",
       headers: { ...bearer(e2e.apiKeyPlaintext), "Content-Type": "application/json" },
-      body: "{",
+      data: Buffer.from("{"),
     });
     expect(res.status()).toBe(400);
     await expect(res.json()).resolves.toMatchObject({ error: "Invalid JSON body" });
@@ -220,7 +220,7 @@ test.describe("api-v1 auth + validation", () => {
     const res = await request.fetch(reassignPath(e2e.meetingId), {
       method: "POST",
       headers: { ...bearer(e2e.apiKeyPlaintext), "Content-Type": "application/json" },
-      body: "{",
+      data: Buffer.from("{"),
     });
     expect(res.status()).toBe(400);
     await expect(res.json()).resolves.toMatchObject({ error: "Invalid JSON body" });

@@ -1,6 +1,5 @@
 "use client";
 
-import { AdminPanelSkeleton } from "@/components/calendar-admin/admin-panel-skeleton";
 import { AlertBanner, Button, EmptyState, Input, Label } from "@/components/ui";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/ui/cn";
@@ -12,7 +11,8 @@ import type {
   SequenceTimingAnchor,
 } from "@/lib/types/platform";
 import { ChevronDown, Mail } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { usePendingAction } from "@/lib/ui/use-pending-action";
 
 const TRIGGER_EVENTS: AppEventType[] = [
   "meeting.booked",
@@ -116,13 +116,19 @@ function isSequenceDirty(
 type SequencesPanelProps = {
   calendarId: string;
   calendarName: string;
+  /** Server-loaded sequences for the first render; reloads after mutations. */
+  initialSequences: EmailSequence[];
 };
 
 export function SequencesPanel({
   calendarId,
   calendarName,
+  initialSequences,
 }: SequencesPanelProps) {
-  const [sequences, setSequences] = useState<EmailSequence[]>([]);
+  const { pendingKey, run } = usePendingAction();
+  const [sequences, setSequences] = useState<EmailSequence[]>(
+    initialSequences,
+  );
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loadedStepsById, setLoadedStepsById] = useState<
     Record<string, EmailSequenceStep[]>
@@ -131,14 +137,12 @@ export function SequencesPanel({
     Record<string, StepDraft[]>
   >({});
   const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [triggerEvent, setTriggerEvent] = useState<AppEventType>("meeting.booked");
   const [saving, setSaving] = useState(false);
 
   const loadSequences = useCallback(async () => {
-    setLoading(true);
     setError(null);
     try {
       const res = await fetch(`/api/calendars/${calendarId}/sequences`);
@@ -152,14 +156,8 @@ export function SequencesPanel({
       setSequences(data.sequences ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load sequences");
-    } finally {
-      setLoading(false);
     }
   }, [calendarId]);
-
-  useEffect(() => {
-    void loadSequences();
-  }, [loadSequences]);
 
   async function loadSequenceDetail(sequenceId: string) {
     setLoadingDetailId(sequenceId);
@@ -266,29 +264,31 @@ export function SequencesPanel({
     if (!window.confirm(`Delete sequence “${sequence.name}”?`)) {
       return;
     }
-    const res = await fetch(
-      `/api/calendars/${calendarId}/sequences/${sequence.id}`,
-      { method: "DELETE" },
-    );
-    if (!res.ok) {
-      toast("Failed to delete sequence", { variant: "error" });
-      return;
-    }
-    if (expandedId === sequence.id) {
-      setExpandedId(null);
-    }
-    setLoadedStepsById((prev) => {
-      const next = { ...prev };
-      delete next[sequence.id];
-      return next;
+    await run(`delete:${sequence.id}`, async () => {
+      const res = await fetch(
+        `/api/calendars/${calendarId}/sequences/${sequence.id}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) {
+        toast("Failed to delete sequence", { variant: "error" });
+        return;
+      }
+      if (expandedId === sequence.id) {
+        setExpandedId(null);
+      }
+      setLoadedStepsById((prev) => {
+        const next = { ...prev };
+        delete next[sequence.id];
+        return next;
+      });
+      setStepDraftsById((prev) => {
+        const next = { ...prev };
+        delete next[sequence.id];
+        return next;
+      });
+      toast("Sequence deleted", { variant: "success" });
+      await loadSequences();
     });
-    setStepDraftsById((prev) => {
-      const next = { ...prev };
-      delete next[sequence.id];
-      return next;
-    });
-    toast("Sequence deleted", { variant: "success" });
-    await loadSequences();
   }
 
   function updateDraft(sequenceId: string, index: number, patch: Partial<StepDraft>) {
@@ -499,40 +499,36 @@ export function SequencesPanel({
         </AlertBanner>
       ) : null}
 
-      {!loading ? (
-        <form
-          onSubmit={handleCreate}
-          className="mb-6 grid gap-4 rounded-xl border border-neutral-100 bg-white p-4 shadow-s3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:items-end"
-        >
-          <Label className="block min-w-0 space-y-1.5 sm:col-span-2 xl:col-span-1">
-            Name
-            <Input value={name} onChange={(e) => setName(e.target.value)} required />
-          </Label>
-          <Label className="block min-w-0 space-y-1.5">
-            Trigger
-            <select
-              value={triggerEvent}
-              onChange={(e) => setTriggerEvent(e.target.value as AppEventType)}
-              className={SELECT_CLASS}
-            >
-              {TRIGGER_EVENTS.map((event) => (
-                <option key={event} value={event}>
-                  {TRIGGER_LABELS[event] ?? event}
-                </option>
-              ))}
-            </select>
-          </Label>
-          <div className="sm:col-span-2 xl:col-span-1 xl:flex xl:justify-end">
-            <Button type="submit" loading={saving} loadingLabel="Creating sequence…">
-              Add sequence
-            </Button>
-          </div>
-        </form>
-      ) : null}
+      <form
+        onSubmit={handleCreate}
+        className="mb-6 grid gap-4 rounded-xl border border-neutral-100 bg-white p-4 shadow-s3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:items-end"
+      >
+        <Label className="block min-w-0 space-y-1.5 sm:col-span-2 xl:col-span-1">
+          Name
+          <Input value={name} onChange={(e) => setName(e.target.value)} required />
+        </Label>
+        <Label className="block min-w-0 space-y-1.5">
+          Trigger
+          <select
+            value={triggerEvent}
+            onChange={(e) => setTriggerEvent(e.target.value as AppEventType)}
+            className={SELECT_CLASS}
+          >
+            {TRIGGER_EVENTS.map((event) => (
+              <option key={event} value={event}>
+                {TRIGGER_LABELS[event] ?? event}
+              </option>
+            ))}
+          </select>
+        </Label>
+        <div className="sm:col-span-2 xl:col-span-1 xl:flex xl:justify-end">
+          <Button type="submit" loading={saving} loadingLabel="Creating sequence…">
+            Add sequence
+          </Button>
+        </div>
+      </form>
 
-      {loading ? (
-        <AdminPanelSkeleton section="sequences" />
-      ) : sequences.length === 0 ? (
+      {sequences.length === 0 ? (
         <EmptyState
           icon={Mail}
           title="No sequences"
@@ -578,6 +574,9 @@ export function SequencesPanel({
                     type="button"
                     variant="secondary"
                     size="sm"
+                    loading={pendingKey === `delete:${sequence.id}`}
+                    loadingLabel="Deleting…"
+                    disabled={pendingKey !== null}
                     onClick={() => void handleDelete(sequence)}
                   >
                     Delete
@@ -589,7 +588,7 @@ export function SequencesPanel({
                     id={`sequence-panel-${sequence.id}`}
                     role="region"
                     aria-labelledby={`sequence-header-${sequence.id}`}
-                    className="border-t border-neutral-100 px-4 py-4 sm:px-5"
+                    className="border-t border-neutral-100 px-4 py-4 sm:px-6"
                   >
                     {renderStepsEditor(sequence.id)}
                   </div>

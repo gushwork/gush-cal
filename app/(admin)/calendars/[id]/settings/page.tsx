@@ -1,6 +1,7 @@
 import { CalendarForm } from "@/components/calendar-admin/calendar-form";
 import { loadCalendarBundle } from "@/components/calendar-admin/load-calendar-bundle";
 import { PublicLinkEditor } from "@/components/calendar-admin/public-link-editor";
+import { getAppUrl } from "@/components/calendar-admin/validation";
 import { Card } from "@/components/ui";
 import { getSchedulerId } from "@/lib/auth";
 import { calendarPageTitle, pageTitle } from "@/lib/brand/metadata";
@@ -48,6 +49,7 @@ export default async function CalendarSettingsPage({ params }: PageProps) {
           <PublicLinkEditor
             calendarId={id}
             slug={bundle.slug}
+            appUrl={getAppUrl()}
             showHeading={false}
           />
         </Card>

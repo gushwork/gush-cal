@@ -1,6 +1,5 @@
 "use client";
 
-import { AdminPanelSkeleton } from "@/components/calendar-admin/admin-panel-skeleton";
 import { SlugEditor } from "@/components/calendar-admin/slug-editor";
 import {
   AlertBanner,
@@ -16,12 +15,15 @@ import type { Team } from "@/lib/types/platform";
 import { cn } from "@/lib/ui/cn";
 import { ChevronDown, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { usePendingAction } from "@/lib/ui/use-pending-action";
 
 type TeamsPanelProps = {
   calendarId: string;
   calendarName: string;
   members: CalendarMember[];
+  /** Server-loaded teams for the first render; reloads after mutations. */
+  initialTeams: Team[];
 };
 
 type MemberCheckboxListProps = {
@@ -94,9 +96,11 @@ export function TeamsPanel({
   calendarId,
   calendarName,
   members,
+  initialTeams,
 }: TeamsPanelProps) {
+  const { pendingKey, run } = usePendingAction();
   const router = useRouter();
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [teams, setTeams] = useState<Team[]>(initialTeams);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loadedMembersByTeamId, setLoadedMembersByTeamId] = useState<
     Record<string, string[]>
@@ -105,7 +109,6 @@ export function TeamsPanel({
     Record<string, string[]>
   >({});
   const [loadingMembersId, setLoadingMembersId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
@@ -114,7 +117,6 @@ export function TeamsPanel({
   const [saving, setSaving] = useState(false);
 
   const loadTeams = useCallback(async () => {
-    setLoading(true);
     setError(null);
     try {
       const res = await fetch(`/api/calendars/${calendarId}/teams`);
@@ -125,14 +127,8 @@ export function TeamsPanel({
       setTeams(data.teams ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load teams");
-    } finally {
-      setLoading(false);
     }
   }, [calendarId]);
-
-  useEffect(() => {
-    void loadTeams();
-  }, [loadTeams]);
 
   async function loadTeamMembers(teamId: string) {
     setLoadingMembersId(teamId);
@@ -266,31 +262,33 @@ export function TeamsPanel({
     if (!window.confirm(`Delete team “${team.name}”?`)) {
       return;
     }
-    const res = await fetch(
-      `/api/calendars/${calendarId}/teams/${team.id}`,
-      { method: "DELETE" },
-    );
-    if (!res.ok) {
-      const data = (await res.json()) as { error?: string };
-      toast(data.error ?? "Failed to delete team", { variant: "error" });
-      return;
-    }
-    if (expandedId === team.id) {
-      setExpandedId(null);
-    }
-    setLoadedMembersByTeamId((prev) => {
-      const next = { ...prev };
-      delete next[team.id];
-      return next;
+    await run(`delete:${team.id}`, async () => {
+      const res = await fetch(
+        `/api/calendars/${calendarId}/teams/${team.id}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        toast(data.error ?? "Failed to delete team", { variant: "error" });
+        return;
+      }
+      if (expandedId === team.id) {
+        setExpandedId(null);
+      }
+      setLoadedMembersByTeamId((prev) => {
+        const next = { ...prev };
+        delete next[team.id];
+        return next;
+      });
+      setMemberDraftsByTeamId((prev) => {
+        const next = { ...prev };
+        delete next[team.id];
+        return next;
+      });
+      toast("Team deleted", { variant: "success" });
+      await loadTeams();
+      router.refresh();
     });
-    setMemberDraftsByTeamId((prev) => {
-      const next = { ...prev };
-      delete next[team.id];
-      return next;
-    });
-    toast("Team deleted", { variant: "success" });
-    await loadTeams();
-    router.refresh();
   }
 
   function renderMembersEditor(teamId: string) {
@@ -352,7 +350,7 @@ export function TeamsPanel({
         </Button>
       </div>
 
-      {showForm && !loading ? (
+      {showForm ? (
         <form
           onSubmit={handleCreate}
           className="mb-6 space-y-4 rounded-xl border border-neutral-100 bg-white p-4 shadow-s3"
@@ -387,9 +385,7 @@ export function TeamsPanel({
         </form>
       ) : null}
 
-      {loading ? (
-        <AdminPanelSkeleton section="teams" />
-      ) : teams.length === 0 ? (
+      {teams.length === 0 ? (
         <EmptyState
           icon={Users}
           title="No teams yet"
@@ -445,6 +441,9 @@ export function TeamsPanel({
                     type="button"
                     variant="secondary"
                     size="sm"
+                    loading={pendingKey === `delete:${team.id}`}
+                    loadingLabel="Deleting…"
+                    disabled={pendingKey !== null}
                     onClick={() => void handleDelete(team)}
                   >
                     Delete
@@ -456,7 +455,7 @@ export function TeamsPanel({
                     id={`team-panel-${team.id}`}
                     role="region"
                     aria-labelledby={`team-header-${team.id}`}
-                    className="border-t border-neutral-100 px-4 py-4 sm:px-5"
+                    className="border-t border-neutral-100 px-4 py-4 sm:px-6"
                   >
                     <div className="mb-4 sm:hidden">
                       <SlugEditor

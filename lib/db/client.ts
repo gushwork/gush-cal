@@ -13,7 +13,12 @@ export function getDb(): AppDatabase {
     if (!connectionString) {
       throw new Error("DATABASE_URL is not set");
     }
-    const client = postgres(connectionString, { prepare: false });
+    const client = postgres(connectionString, {
+      prepare: false,
+      // Close idle connections so a Machine resumed from suspend (fly.toml)
+      // opens fresh ones instead of reusing sockets the database dropped.
+      idle_timeout: 60,
+    });
     dbInstance = drizzle(client, { schema });
   }
   return dbInstance;

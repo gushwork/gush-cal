@@ -1,6 +1,7 @@
 import { SequencesPanel } from "@/components/calendar-admin/sequences/sequences-panel";
 import { loadCalendarBundle } from "@/components/calendar-admin/load-calendar-bundle";
 import { getSchedulerId } from "@/lib/auth";
+import { listSequences } from "@/lib/email/sequences";
 import { calendarPageTitle, pageTitle } from "@/lib/brand/metadata";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
@@ -29,10 +30,19 @@ export default async function CalendarSequencesPage({ params }: PageProps) {
   }
 
   const { id } = await params;
-  const bundle = await loadCalendarBundle(id, schedulerId);
+  const [bundle, sequences] = await Promise.all([
+    loadCalendarBundle(id, schedulerId),
+    listSequences(id),
+  ]);
   if (!bundle) {
     notFound();
   }
 
-  return <SequencesPanel calendarId={id} calendarName={bundle.name} />;
+  return (
+    <SequencesPanel
+      calendarId={id}
+      calendarName={bundle.name}
+      initialSequences={sequences}
+    />
+  );
 }

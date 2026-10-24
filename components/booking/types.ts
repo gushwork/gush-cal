@@ -18,4 +18,12 @@ export type BookingFlowProps = {
   showPanelistCount?: boolean;
   calendarSlug?: string;
   onConfirmed?: (meeting: import("@/lib/types").PublicMeeting) => void;
+  /**
+   * Public flow only: server-loaded Teams and team selection mode. When
+   * provided, the flow skips its metadata fetch on mount.
+   */
+  initialMetadata?: {
+    teams: { id: string; name: string; slug: string }[];
+    teamSelectionMode: string | null;
+  };
 };
