@@ -1,5 +1,5 @@
 app = "gush-cal"
-primary_region = "iad"
+primary_region = "nrt"
 
 [build]
 

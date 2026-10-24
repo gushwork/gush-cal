@@ -279,6 +279,8 @@ chmod +x scripts/deploy.sh   # once
 npm run deploy               # migrate → sync secrets → fly deploy
 ```
 
+Keep the Fly region next to the database. Production Supabase is in `ap-northeast-1` (Tokyo), so `fly.toml` uses `primary_region = "nrt"`. Every admin page runs several sequential queries; a cross-ocean round trip on each one makes requests pile up behind Fly's concurrency limit (503s on sidebar navigation).
+
 ### First-time Supabase
 
 1. [Create a project](https://supabase.com/dashboard) (or use CLI — see below).
