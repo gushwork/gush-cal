@@ -1,37 +1,39 @@
 "use client";
 
-import { AdminPanelSkeleton } from "@/components/calendar-admin/admin-panel-skeleton";
-import { AlertBanner, Button, EmptyState, Input, Label } from "@/components/ui";
+import {
+  AlertBanner,
+  Button,
+  EmptyState,
+  Input,
+  Label,
+  LocalDateTime,
+} from "@/components/ui";
 import { toast } from "@/components/ui/toast";
 import type { ApiKeySummary } from "@/lib/events/api-keys";
 import { KeyRound } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { usePendingAction } from "@/lib/ui/use-pending-action";
 
 type ApiKeysPanelProps = {
   calendarId: string;
   calendarName: string;
+  /** Server-loaded keys for the first render; reloads after mutations. */
+  initialKeys: ApiKeySummary[];
 };
 
-function formatTimestamp(value: string | null): string {
-  if (!value) {
-    return "Never";
-  }
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
-
-export function ApiKeysPanel({ calendarId, calendarName }: ApiKeysPanelProps) {
-  const [keys, setKeys] = useState<ApiKeySummary[]>([]);
-  const [loading, setLoading] = useState(true);
+export function ApiKeysPanel({
+  calendarId,
+  calendarName,
+  initialKeys,
+}: ApiKeysPanelProps) {
+  const { pendingKey, run } = usePendingAction();
+  const [keys, setKeys] = useState<ApiKeySummary[]>(initialKeys);
   const [error, setError] = useState<string | null>(null);
   const [apiKeyName, setApiKeyName] = useState("");
   const [newPlaintextKey, setNewPlaintextKey] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
   const loadKeys = useCallback(async () => {
-    setLoading(true);
     setError(null);
     try {
       const res = await fetch(`/api/calendars/${calendarId}/keys`);
@@ -42,14 +44,8 @@ export function ApiKeysPanel({ calendarId, calendarName }: ApiKeysPanelProps) {
       setKeys(data.keys ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load API keys");
-    } finally {
-      setLoading(false);
     }
   }, [calendarId]);
-
-  useEffect(() => {
-    void loadKeys();
-  }, [loadKeys]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -85,34 +81,38 @@ export function ApiKeysPanel({ calendarId, calendarName }: ApiKeysPanelProps) {
     if (!window.confirm(`Revoke API key “${key.name}”? It will stop working immediately.`)) {
       return;
     }
-    const res = await fetch(
-      `/api/calendars/${calendarId}/keys/${key.id}`,
-      { method: "PATCH" },
-    );
-    const data = (await res.json()) as { error?: string };
-    if (!res.ok) {
-      toast(data.error ?? "Failed to revoke key", { variant: "error" });
-      return;
-    }
-    toast("API key revoked", { variant: "success" });
-    await loadKeys();
+    await run(`revoke:${key.id}`, async () => {
+      const res = await fetch(
+        `/api/calendars/${calendarId}/keys/${key.id}`,
+        { method: "PATCH" },
+      );
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        toast(data.error ?? "Failed to revoke key", { variant: "error" });
+        return;
+      }
+      toast("API key revoked", { variant: "success" });
+      await loadKeys();
+    });
   }
 
   async function handleDelete(key: ApiKeySummary) {
     if (!window.confirm(`Delete API key “${key.name}”? This cannot be undone.`)) {
       return;
     }
-    const res = await fetch(
-      `/api/calendars/${calendarId}/keys/${key.id}`,
-      { method: "DELETE" },
-    );
-    if (!res.ok) {
-      const data = (await res.json()) as { error?: string };
-      toast(data.error ?? "Failed to delete key", { variant: "error" });
-      return;
-    }
-    toast("API key deleted", { variant: "success" });
-    await loadKeys();
+    await run(`delete:${key.id}`, async () => {
+      const res = await fetch(
+        `/api/calendars/${calendarId}/keys/${key.id}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        toast(data.error ?? "Failed to delete key", { variant: "error" });
+        return;
+      }
+      toast("API key deleted", { variant: "success" });
+      await loadKeys();
+    });
   }
 
   const activeKeys = keys.filter((key) => !key.revokedAt);
@@ -159,9 +159,7 @@ export function ApiKeysPanel({ calendarId, calendarName }: ApiKeysPanelProps) {
         </Button>
       </form>
 
-      {loading ? (
-        <AdminPanelSkeleton section="api keys" />
-      ) : keys.length === 0 ? (
+      {keys.length === 0 ? (
         <EmptyState
           icon={KeyRound}
           title="No API keys yet"
@@ -193,10 +191,10 @@ export function ApiKeysPanel({ calendarId, calendarName }: ApiKeysPanelProps) {
                         : "—"}
                     </td>
                     <td className="px-4 py-3 text-neutral-600">
-                      {formatTimestamp(key.createdAt)}
+                      <LocalDateTime value={key.createdAt} />
                     </td>
                     <td className="px-4 py-3 text-neutral-600">
-                      {formatTimestamp(key.lastUsedAt)}
+                      <LocalDateTime value={key.lastUsedAt} />
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -216,6 +214,9 @@ export function ApiKeysPanel({ calendarId, calendarName }: ApiKeysPanelProps) {
                             type="button"
                             variant="secondary"
                             size="sm"
+                            loading={pendingKey === `revoke:${key.id}`}
+                            loadingLabel="Revoking…"
+                            disabled={pendingKey !== null}
                             onClick={() => void handleRevoke(key)}
                           >
                             Revoke
@@ -225,6 +226,9 @@ export function ApiKeysPanel({ calendarId, calendarName }: ApiKeysPanelProps) {
                           type="button"
                           variant="secondary"
                           size="sm"
+                          loading={pendingKey === `delete:${key.id}`}
+                          loadingLabel="Deleting…"
+                          disabled={pendingKey !== null}
                           onClick={() => void handleDelete(key)}
                         >
                           Delete

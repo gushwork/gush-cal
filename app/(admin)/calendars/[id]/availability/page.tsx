@@ -1,5 +1,9 @@
 import { notFound, redirect } from "next/navigation";
-import { AvailabilityGrid } from "@/components/availability-grid";
+import {
+  AvailabilityGrid,
+  AvailabilityGridSkeleton,
+} from "@/components/availability-grid";
+import { ClientOnly } from "@/components/ui";
 import { loadCalendarBundle } from "@/components/calendar-admin/load-calendar-bundle";
 import { getSchedulerId } from "@/lib/auth";
 import { calendarPageTitle, pageTitle } from "@/lib/brand/metadata";
@@ -38,7 +42,10 @@ export default async function AvailabilityPage({ params }: PageProps) {
 
   return (
     <div className="flex h-[calc(100dvh-14rem)] flex-col overflow-hidden">
-      <AvailabilityGrid calendarId={id} bundle={bundle} />
+      {/* Date range, labels and the "now" line use the viewer's timezone. */}
+      <ClientOnly fallback={<AvailabilityGridSkeleton viewMode="day" />}>
+        <AvailabilityGrid calendarId={id} bundle={bundle} />
+      </ClientOnly>
     </div>
   );
 }

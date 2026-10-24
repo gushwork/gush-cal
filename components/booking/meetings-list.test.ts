@@ -25,6 +25,8 @@ describe("SP-23 meetings list", () => {
     expect(source).toContain("EmptyState");
     expect(source).toContain("Button asChild");
     expect(source).toContain("initialMeetings");
-    expect(source).toContain("loadMeetings(initialMeetings.length > 0)");
+    // Server-loaded Meetings render after hydration without a refetch.
+    expect(source).toContain("useIsClient");
+    expect(source).not.toContain("fetch(`/api/calendars/${calendarId}/meetings`)");
   });
 });

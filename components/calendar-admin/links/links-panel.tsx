@@ -1,6 +1,5 @@
 "use client";
 
-import { AdminPanelSkeleton } from "@/components/calendar-admin/admin-panel-skeleton";
 import { CopyLinkButton } from "@/components/calendar-admin/copy-link-button";
 import { SlugEditor } from "@/components/calendar-admin/slug-editor";
 import { AlertBanner, Button, EmptyState, Input, Label } from "@/components/ui";
@@ -9,23 +8,30 @@ import type { CalendarMember } from "@/lib/types";
 import type { BookingLink, BookingLinkKind, Team } from "@/lib/types/platform";
 import { Link2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { usePendingAction } from "@/lib/ui/use-pending-action";
 
 type LinksPanelProps = {
   calendarId: string;
   calendarName: string;
   members: CalendarMember[];
+  /** Server-loaded data for the first render; reloads after mutations. */
+  initialData: { links: BookingLink[]; teams: Team[] };
+  /** Public app origin from the server (`getAppUrl()`), for copyable URLs. */
+  appUrl: string;
 };
 
 export function LinksPanel({
   calendarId,
   calendarName,
   members,
+  initialData,
+  appUrl,
 }: LinksPanelProps) {
+  const { pendingKey, run } = usePendingAction();
   const router = useRouter();
-  const [links, setLinks] = useState<BookingLink[]>([]);
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [links, setLinks] = useState<BookingLink[]>(initialData.links);
+  const [teams, setTeams] = useState<Team[]>(initialData.teams);
   const [error, setError] = useState<string | null>(null);
   const [kind, setKind] = useState<BookingLinkKind>("team");
   const [slug, setSlug] = useState("");
@@ -34,7 +40,6 @@ export function LinksPanel({
   const [saving, setSaving] = useState(false);
 
   const loadData = useCallback(async () => {
-    setLoading(true);
     setError(null);
     try {
       const [linksRes, teamsRes] = await Promise.all([
@@ -56,14 +61,8 @@ export function LinksPanel({
       setTeams(teamsData.teams ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load links");
-    } finally {
-      setLoading(false);
     }
   }, [calendarId]);
-
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -122,37 +121,41 @@ export function LinksPanel({
   }
 
   async function handleToggle(link: BookingLink) {
-    const res = await fetch(
-      `/api/calendars/${calendarId}/links/${link.id}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: !link.enabled }),
-      },
-    );
-    if (!res.ok) {
-      const data = (await res.json()) as { error?: string };
-      toast(data.error ?? "Failed to update link", { variant: "error" });
-      return;
-    }
-    await loadData();
+    await run(`toggle:${link.id}`, async () => {
+      const res = await fetch(
+        `/api/calendars/${calendarId}/links/${link.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled: !link.enabled }),
+        },
+      );
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        toast(data.error ?? "Failed to update link", { variant: "error" });
+        return;
+      }
+      await loadData();
+    });
   }
 
   async function handleDelete(link: BookingLink) {
     if (!window.confirm("Delete this booking link?")) {
       return;
     }
-    const res = await fetch(
-      `/api/calendars/${calendarId}/links/${link.id}`,
-      { method: "DELETE" },
-    );
-    if (!res.ok) {
-      const data = (await res.json()) as { error?: string };
-      toast(data.error ?? "Failed to delete link", { variant: "error" });
-      return;
-    }
-    toast("Link deleted", { variant: "success" });
-    await loadData();
+    await run(`delete:${link.id}`, async () => {
+      const res = await fetch(
+        `/api/calendars/${calendarId}/links/${link.id}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        toast(data.error ?? "Failed to delete link", { variant: "error" });
+        return;
+      }
+      toast("Link deleted", { variant: "success" });
+      await loadData();
+    });
   }
 
   return (
@@ -172,7 +175,6 @@ export function LinksPanel({
         </AlertBanner>
       ) : null}
 
-      {!loading ? (
       <form
         onSubmit={handleCreate}
         className="mb-6 space-y-4 rounded-xl border border-neutral-100 bg-white p-4 shadow-s3"
@@ -247,11 +249,8 @@ export function LinksPanel({
           Create link
         </Button>
       </form>
-      ) : null}
 
-      {loading ? (
-        <AdminPanelSkeleton section="links" />
-      ) : links.length === 0 ? (
+      {links.length === 0 ? (
         <EmptyState
           icon={Link2}
           title="No booking links"
@@ -303,7 +302,7 @@ export function LinksPanel({
                           url={
                             link.publicUrl.startsWith("http")
                               ? link.publicUrl
-                              : `${window.location.origin}${link.publicUrl}`
+                              : `${appUrl}${link.publicUrl}`
                           }
                           variant="secondary"
                           size="sm"
@@ -313,6 +312,9 @@ export function LinksPanel({
                         type="button"
                         variant="secondary"
                         size="sm"
+                        loading={pendingKey === `toggle:${link.id}`}
+                        loadingLabel="Saving…"
+                        disabled={pendingKey !== null}
                         onClick={() => void handleToggle(link)}
                       >
                         {link.enabled ? "Disable" : "Enable"}
@@ -321,6 +323,9 @@ export function LinksPanel({
                         type="button"
                         variant="secondary"
                         size="sm"
+                        loading={pendingKey === `delete:${link.id}`}
+                        loadingLabel="Deleting…"
+                        disabled={pendingKey !== null}
                         onClick={() => void handleDelete(link)}
                       >
                         Delete

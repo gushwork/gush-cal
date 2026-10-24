@@ -185,6 +185,7 @@ export function BookingFlow({
   showPanelistCount = !isPublic,
   calendarSlug: calendarSlugProp,
   onConfirmed,
+  initialMetadata,
 }: BookingFlowProps) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -240,16 +241,20 @@ export function BookingFlow({
   const [confirmedMeeting, setConfirmedMeeting] = useState<PublicMeeting | null>(
     null,
   );
-  const [metadataTeams, setMetadataTeams] = useState<TeamOption[]>([]);
+  const [metadataTeams, setMetadataTeams] = useState<TeamOption[]>(
+    initialMetadata?.teams ?? [],
+  );
   const [teamSelectionMode, setTeamSelectionMode] = useState<string | null>(
-    null,
+    initialMetadata?.teamSelectionMode ?? null,
   );
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [memberIdForBooking, setMemberIdForBooking] = useState<string | null>(
     null,
   );
   const [teamPickerResolved, setTeamPickerResolved] = useState(!isPublic);
-  const [metadataLoading, setMetadataLoading] = useState(isPublic);
+  const [metadataLoading, setMetadataLoading] = useState(
+    isPublic && initialMetadata === undefined,
+  );
   const [duplicatePrompt, setDuplicatePrompt] = useState<{
     manageUrl: string;
     meeting: PublicMeeting;
@@ -274,6 +279,9 @@ export function BookingFlow({
     !teamIdForBooking;
 
   useEffect(() => {
+    if (initialMetadata) {
+      return;
+    }
     if (!isPublic || !calendarSlug) {
       setMetadataLoading(false);
       return;
@@ -306,7 +314,7 @@ export function BookingFlow({
     return () => {
       cancelled = true;
     };
-  }, [calendarSlug, isPublic]);
+  }, [calendarSlug, initialMetadata, isPublic]);
 
   useEffect(() => {
     if (!needsTeamPicker && !metadataLoading) {
