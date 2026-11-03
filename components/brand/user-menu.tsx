@@ -3,18 +3,25 @@
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/ui/cn";
-import { LayoutGrid, LogOut } from "lucide-react";
+import { Gauge, LayoutGrid, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 export type UserMenuProps = {
   email: string;
   name?: string;
+  isAdmin?: boolean;
   signOutAction: () => void | Promise<void>;
   className?: string;
 };
 
-export function UserMenu({ email, name, signOutAction, className }: UserMenuProps) {
+export function UserMenu({
+  email,
+  name,
+  isAdmin = false,
+  signOutAction,
+  className,
+}: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -76,6 +83,17 @@ export function UserMenu({ email, name, signOutAction, className }: UserMenuProp
             <LayoutGrid className="h-4 w-4 shrink-0" aria-hidden />
             Calendars
           </Link>
+          {isAdmin && (
+            <Link
+              href="/admin"
+              role="menuitem"
+              className="interactive flex items-center gap-2 rounded-md px-2 py-2 text-sm text-neutral-700 hover:bg-neutral-25 hover:text-neutral-900"
+              onClick={() => setOpen(false)}
+            >
+              <Gauge className="h-4 w-4 shrink-0" aria-hidden />
+              Platform usage
+            </Link>
+          )}
           <div className="my-1 border-t border-neutral-100" />
           <form action={signOutAction}>
             <Button

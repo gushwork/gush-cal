@@ -3,6 +3,7 @@
 import { cn } from "@/lib/ui/cn";
 import {
   CalendarClock,
+  ChartColumn,
   Clock,
   GitBranch,
   KeyRound,
@@ -43,6 +44,7 @@ function buildGroups(calendarId: string): NavGroup[] {
       label: "Calendar",
       items: [
         { id: "overview", label: "Overview", href: base, icon: LayoutGrid, exact: true },
+        { id: "analytics", label: "Analytics", href: `${base}/analytics`, icon: ChartColumn },
         { id: "members", label: "Members", href: `${base}/members`, icon: Users },
         { id: "settings", label: "Settings", href: `${base}/settings`, icon: Settings },
       ],

@@ -19,6 +19,8 @@ Agent-facing guide to find code quickly. Read `CONTEXT.md` first for domain lang
 | Booking confirm/cancel/list | `lib/booking/`, `app/api/calendars/[id]/book/route.ts`, `app/api/book/[slug]/confirm/route.ts`, `app/api/meetings/[id]/route.ts` |
 | Availability grid | `components/availability-grid/`, `app/api/calendars/[id]/availability/route.ts` |
 | Google Calendar DWD | `lib/google/`, `lib/ports/google-calendar.ts`, `docs/adr/001-google-dwd.md` |
+| Analytics (Calendar + App Admin) | `lib/analytics/`, `components/analytics/`, `app/(admin)/calendars/[id]/analytics/page.tsx`, `app/(admin)/admin/` |
+| App Admin allowlist | `lib/auth/admin.ts` (`ADMIN_EMAILS`) |
 | Auth and domains | `lib/auth/`, `auth.ts`, `app/api/auth/[...nextauth]/route.ts`, `middleware.ts` |
 | UI primitives | `components/ui/`, `components/layout/`, `components/brand/` |
 | Brand config | `lib/brand/`, `components/brand/brand-styles.tsx` |
@@ -51,7 +53,8 @@ Admin pages live under `app/(admin)/`:
 - `app/(admin)/calendars/page.tsx`: Calendar list.
 - `app/(admin)/calendars/new/page.tsx`: create Calendar.
 - `app/(admin)/calendars/[id]/layout.tsx`: Shared calendar shell (header, sidebar, breadcrumbs).
-- `app/(admin)/calendars/[id]/page.tsx`: Calendar overview stats.
+- `app/(admin)/calendars/[id]/page.tsx`: Calendar overview stats (links to Analytics).
+- `app/(admin)/calendars/[id]/analytics/page.tsx`: Calendar owner analytics (`?range=7|30|90`).
 - `app/(admin)/calendars/[id]/members/page.tsx`: Member list.
 - `app/(admin)/calendars/[id]/settings/page.tsx`: Public link slug and calendar settings.
 - `app/(admin)/calendars/[id]/teams/page.tsx`: Teams configuration.
@@ -64,6 +67,11 @@ Admin pages live under `app/(admin)/`:
 - `app/(admin)/calendars/[id]/book/page.tsx`: Scheduler booking flow.
 - `app/(admin)/calendars/[id]/meetings/page.tsx`: Meeting list.
 - `app/(admin)/calendars/[id]/members/**/page.tsx`: Member create/edit.
+
+App Admin pages:
+
+- `app/(admin)/admin/layout.tsx`: `isAppAdmin()` gate (404 for everyone else).
+- `app/(admin)/admin/page.tsx`: platform usage dashboard (`?range=7|30|90`).
 
 Public booking pages:
 
@@ -101,6 +109,13 @@ API routes:
 - Loading a Calendar bundle: `components/calendar-admin/load-calendar-bundle.ts` -> `lib/db/assemble-calendar-bundle.ts`.
 - Slugs: `lib/db/slug.ts`, `components/calendar-admin/slug-editor.tsx`, `components/calendar-admin/public-link-editor.tsx`. Team slug updates sync to `booking_links` in `lib/teams/teams.ts`; team link slug updates sync to `teams` in `lib/booking-links/links.ts`.
 - Email sequences: `lib/email/sequences.ts` (`timing_anchor` on steps: `after_booking`, `before_meeting`, `after_meeting`). Worker: `scripts/run-outbox-worker.ts` calls `processDueEmailSteps`.
+
+### Analytics
+
+- Pure computations (unit-tested): `lib/analytics/calendar-analytics.ts` (`computeCalendarAnalytics`), `lib/analytics/platform-analytics.ts` (`computePlatformAnalytics`). Time/day bucketing and ranges: `lib/analytics/time.ts`; number formatting: `lib/analytics/format.ts`.
+- DB loaders (one parallel round trip each): `lib/analytics/load-calendar-analytics.ts` (no ownership check: the page runs it alongside `loadCalendarBundle` and calls `notFound()`), `lib/analytics/load-platform-analytics.ts` (App Admin only).
+- UI: server components in `components/analytics/` (`Panel`, `StatStrip`, `Delta`, `RangeTabs`, DOM-based `ColumnChart`, `Heatmap`, `BarList`, `SplitBar`); no chart library, no client fetches. Skeletons: `AnalyticsSectionSkeleton`, `AnalyticsPageSkeleton` in `components/layout/route-skeletons.tsx`.
+- Entry points: Calendar sidebar "Analytics"; header "Admin" link and account-menu "Platform usage" for App Admins (`AppShell isAdmin`).
 
 ### Slot Engine
 
