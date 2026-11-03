@@ -5,6 +5,7 @@ import { calendarSettings } from "@/lib/db/schema";
 import type {
   CalendarSchedulingSettings,
   CalendarSettings,
+  ManageUrlInjection,
 } from "@/lib/types/platform";
 import { defaultCalendarSettings } from "@/lib/types/platform";
 import { defaultSchedulingSettings } from "./pool-key";
@@ -38,6 +39,31 @@ export async function loadCalendarSchedulingSettings(
   }
 
   return normalizeCalendarSettings(row.settings).scheduling;
+}
+
+/** Settings a booking needs (one query): assignment + invite link injection. */
+export async function loadCalendarBookingSettings(calendarId: string): Promise<{
+  scheduling: CalendarSchedulingSettings;
+  manageUrlInjection: ManageUrlInjection;
+}> {
+  const [row] = await db()
+    .select()
+    .from(calendarSettings)
+    .where(eq(calendarSettings.calendarId, calendarId))
+    .limit(1);
+
+  if (!row) {
+    return {
+      scheduling: defaultSchedulingSettings(),
+      manageUrlInjection: defaultCalendarSettings().manageUrlInjection,
+    };
+  }
+
+  const settings = normalizeCalendarSettings(row.settings);
+  return {
+    scheduling: settings.scheduling,
+    manageUrlInjection: settings.manageUrlInjection,
+  };
 }
 
 /** Full Calendar settings as returned by the admin settings API (server-managed maps omitted). */

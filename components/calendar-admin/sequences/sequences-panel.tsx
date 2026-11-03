@@ -447,6 +447,11 @@ export function SequencesPanel({
                 rows={3}
                 className="w-full rounded-md border border-neutral-200 px-3 py-2 text-sm"
               />
+              <span className="block text-xs font-normal normal-case tracking-normal text-neutral-500">
+                Placeholders: {"{{guestEmail}}"}, {"{{memberEmail}}"}, {"{{startsAt}}"},{" "}
+                {"{{rescheduleUrl}}"}, {"{{cancelUrl}}"}, {"{{manageUrl}}"}. Reschedule and
+                cancel links are added automatically unless you place one.
+              </span>
             </Label>
             <Button
               type="button"

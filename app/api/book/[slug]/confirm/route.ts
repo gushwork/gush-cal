@@ -60,7 +60,11 @@ export async function POST(request: Request, { params }: RouteParams) {
   }
 
   return NextResponse.json(
-    { meeting: toPublicMeeting(result.meeting) },
+    {
+      meeting: toPublicMeeting(result.meeting),
+      // Same links as in the guest's calendar invite.
+      manageLinks: result.manageLinks,
+    },
     { status: 201 },
   );
 }

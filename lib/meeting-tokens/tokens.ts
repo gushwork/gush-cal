@@ -1,10 +1,10 @@
 import { createHash, randomBytes } from "crypto";
 import { and, eq, isNull } from "drizzle-orm";
-import { getAuthBaseUrl } from "@/lib/auth/base-url";
 import { getDb } from "@/lib/db/client";
 import { meetingManageTokens, meetings } from "@/lib/db/schema";
 import type { ManageTokenPort } from "@/lib/ports/manage-token";
 import { TOKEN_EXPIRY_DAYS_AFTER_MEETING } from "./constants";
+import { buildManageLinks } from "./links";
 
 export function generateManageToken(): string {
   return randomBytes(32).toString("base64url");
@@ -20,46 +20,35 @@ export function computeTokenExpiry(startsAt: string): string {
   return expiry.toISOString();
 }
 
-function buildManageUrl(token: string): string {
-  const base = getAuthBaseUrl();
-  const path = `/manage/${token}`;
-  return base ? `${base}${path}` : path;
-}
-
 export function createManageTokenPort(): ManageTokenPort {
   return {
-    async createForMeeting(meetingId: string) {
+    async createForMeeting(meetingId, options) {
       const db = getDb();
 
-      const [meeting] = await db
-        .select({ startsAt: meetings.startsAt })
-        .from(meetings)
-        .where(eq(meetings.id, meetingId))
-        .limit(1);
-
-      if (!meeting) {
-        throw new Error("Meeting not found");
+      let startsAt = options?.startsAt;
+      if (!startsAt) {
+        const [meeting] = await db
+          .select({ startsAt: meetings.startsAt })
+          .from(meetings)
+          .where(eq(meetings.id, meetingId))
+          .limit(1);
+        if (!meeting) {
+          throw new Error("Meeting not found");
+        }
+        startsAt = meeting.startsAt;
       }
 
-      const now = new Date().toISOString();
-      await db
-        .update(meetingManageTokens)
-        .set({ revokedAt: now })
-        .where(
-          and(
-            eq(meetingManageTokens.meetingId, meetingId),
-            isNull(meetingManageTokens.revokedAt),
-          ),
-        );
-
-      const token = generateManageToken();
+      // Issuing never revokes earlier tokens: links already sent in invites
+      // and emails must keep working. Reschedule/reassign/cancel rotate
+      // explicitly via revokeForMeeting.
+      const token = options?.token ?? generateManageToken();
       await db.insert(meetingManageTokens).values({
         meetingId,
         tokenHash: hashManageToken(token),
-        expiresAt: computeTokenExpiry(meeting.startsAt),
+        expiresAt: computeTokenExpiry(startsAt),
       });
 
-      return { token, manageUrl: buildManageUrl(token) };
+      return { token, ...buildManageLinks(token) };
     },
 
     async validate(token: string) {

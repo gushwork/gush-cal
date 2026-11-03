@@ -5,13 +5,16 @@ import type { CalendarBundle, Meeting } from "@/lib/types";
 import { reassignMeeting } from "./reassign-meeting";
 
 vi.mock("@/lib/scheduling/load-scheduling-settings", () => ({
-  loadCalendarSchedulingSettings: vi.fn().mockResolvedValue({
-    assignmentMode: "load_balanced_round_robin",
-    teamSelectionMode: "url_with_default",
-    defaultTeamId: null,
-    rescheduleAssignment: "keep_member",
-    strictRotation: {},
-    weightedDeficits: {},
+  loadCalendarBookingSettings: vi.fn().mockResolvedValue({
+    scheduling: {
+      assignmentMode: "load_balanced_round_robin",
+      teamSelectionMode: "url_with_default",
+      defaultTeamId: null,
+      rescheduleAssignment: "keep_member",
+      strictRotation: {},
+      weightedDeficits: {},
+    },
+    manageUrlInjection: "auto_inject",
   }),
 }));
 
@@ -217,7 +220,10 @@ describe("reassignMeeting", () => {
       }),
     );
     expect(deps.manageToken.revokeForMeeting).toHaveBeenCalledWith("meet-1");
-    expect(deps.manageToken.createForMeeting).toHaveBeenCalledWith("meet-1");
+    expect(deps.manageToken.createForMeeting).toHaveBeenCalledWith("meet-1", {
+      token: expect.any(String),
+      startsAt: FUTURE_START,
+    });
   });
 
   it("returns MEMBER_INELIGIBLE when target member cannot take the slot", async () => {

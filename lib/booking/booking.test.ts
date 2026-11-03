@@ -28,6 +28,10 @@ const { mockSchedulingSettings } = vi.hoisted(() => ({
 
 vi.mock("@/lib/scheduling/load-scheduling-settings", () => ({
   loadCalendarSchedulingSettings: vi.fn().mockResolvedValue(mockSchedulingSettings),
+  loadCalendarBookingSettings: vi.fn().mockResolvedValue({
+    scheduling: mockSchedulingSettings,
+    manageUrlInjection: "auto_inject",
+  }),
   advanceStrictRotation: vi.fn(),
   advanceWeightedDeficits: vi.fn(),
 }));
@@ -181,13 +185,42 @@ describe("confirmBooking", () => {
       startsAt: sampleBody.startsAt,
       durationMinutes: 30,
       subject: sampleBody.subject,
-      body: sampleBody.body,
+      body: expect.any(String),
       attendeeEmails: ["member@acme.com", "candidate@example.com"],
       requestMeet: true,
     });
 
+    // The invite Google emails carries the Reschedule/Cancel links for the
+    // token persisted with the Meeting.
+    const inviteBody = vi.mocked(deps.google.createMeetingEvent).mock.calls[0][0].body;
+    const { rescheduleUrl, cancelUrl } = result.manageLinks;
+    expect(inviteBody).toBe(
+      `${sampleBody.body}\n\nNeed to make a change?\nReschedule: ${rescheduleUrl}\nCancel: ${cancelUrl}`,
+    );
+    expect(rescheduleUrl).toMatch(/\/manage\/[\w-]+\/reschedule$/);
+    expect(cancelUrl).toMatch(/\/manage\/[\w-]+\/cancel$/);
+
     expect(result.meeting.id).toBe("meet-1");
     expect(result.meeting.googleEventId).toBe("evt-123");
+  });
+
+  it("persists the same manage token that the invite links use", async () => {
+    const deps = createMockDeps();
+    const createForMeeting = vi.spyOn(deps.manageToken, "createForMeeting");
+
+    const result = await confirmBooking(deps, {
+      bundle: sampleBundle,
+      body: sampleBody,
+      bookedBy: "guest",
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const [meetingId, options] = createForMeeting.mock.calls[0];
+    expect(meetingId).toBe("meet-1");
+    expect(result.manageLinks.cancelUrl).toContain(`/manage/${options?.token}/cancel`);
+    const inviteBody = vi.mocked(deps.google.createMeetingEvent).mock.calls[0][0].body;
+    expect(inviteBody).toContain(`/manage/${options?.token}/reschedule`);
   });
 
   it("returns SLOT_UNAVAILABLE when assignment fails", async () => {

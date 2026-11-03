@@ -3,7 +3,11 @@ import type { AppDeps } from "@/lib/deps";
 import { createPlatformDepsStub } from "@/lib/test/mock-platform-deps";
 import type { CalendarBundle, Meeting } from "@/lib/types";
 import { defaultCalendarSettings } from "@/lib/types/platform";
-import { cancelMeetingByToken } from "./cancel-meeting-by-token";
+import {
+  cancelMeetingByToken,
+  MAX_CANCELLATION_REASON_LENGTH,
+  normalizeCancellationReason,
+} from "./cancel-meeting-by-token";
 import { rescheduleMeeting } from "./reschedule-meeting";
 
 vi.mock("@/lib/booking/advance-assignment-state", () => ({
@@ -211,7 +215,10 @@ describe("rescheduleMeeting", () => {
       }),
     );
     expect(deps.manageToken.revokeForMeeting).toHaveBeenCalledWith("meet-1");
-    expect(deps.manageToken.createForMeeting).toHaveBeenCalledWith("meet-1");
+    expect(deps.manageToken.createForMeeting).toHaveBeenCalledWith("meet-1", {
+      token: expect.any(String),
+      startsAt: expect.any(String),
+    });
     expect(mockUpdateSet).toHaveBeenCalledWith(
       expect.objectContaining({
         startsAt: NEW_START,
@@ -405,11 +412,41 @@ describe("cancelMeetingByToken", () => {
       "scheduler@acme.com",
       "evt-123",
     );
-    expect(deps.manageToken.revokeForMeeting).toHaveBeenCalledWith("meet-1");
+    // Links keep working so the guest sees the cancelled state.
+    expect(deps.manageToken.revokeForMeeting).not.toHaveBeenCalled();
     expect(deps.events.emit).toHaveBeenCalledWith(
       expect.objectContaining({
         eventType: "meeting.cancelled",
         meetingId: "meet-1",
+      }),
+    );
+  });
+
+  it("stores a trimmed guest reason and sends it in the webhook payload", async () => {
+    const deps = createMockDeps();
+    deps.manageToken.validate = vi.fn().mockResolvedValue({
+      ok: true,
+      meetingId: "meet-1",
+    });
+    mockMeetingContext();
+
+    const result = await cancelMeetingByToken(deps, {
+      token: "valid-token",
+      reason: "  Accepted another offer  ",
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(mockUpdateSet).toHaveBeenCalledWith(
+      expect.objectContaining({ cancellationReason: "Accepted another offer" }),
+    );
+    expect(deps.events.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventType: "meeting.cancelled",
+        payload: {
+          meetingId: "meet-1",
+          cancelledBy: "guest",
+          reason: "Accepted another offer",
+        },
       }),
     );
   });
@@ -434,5 +471,16 @@ describe("cancelMeetingByToken", () => {
     const result = await cancelMeetingByToken(deps, { token: "expired" });
 
     expect(result).toEqual({ ok: false, code: "INVALID_TOKEN" });
+  });
+});
+
+describe("normalizeCancellationReason", () => {
+  it("drops blank/non-string input and caps length", () => {
+    expect(normalizeCancellationReason("   ")).toBeNull();
+    expect(normalizeCancellationReason(42)).toBeNull();
+    expect(normalizeCancellationReason(undefined)).toBeNull();
+    expect(normalizeCancellationReason("x".repeat(900))).toHaveLength(
+      MAX_CANCELLATION_REASON_LENGTH,
+    );
   });
 });

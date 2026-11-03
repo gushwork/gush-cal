@@ -16,6 +16,7 @@ Agent-facing guide to find code quickly. Read `CONTEXT.md` first for domain lang
 | Calendar CRUD API | `app/api/calendars/route.ts`, `app/api/calendars/[id]/route.ts` |
 | Member CRUD API | `app/api/calendars/[id]/members/**/route.ts` |
 | Slot generation and assignment | `lib/slots/` |
+| Guest reschedule/cancel (manage links) | `app/manage/[token]/{page,reschedule/page,cancel/page}.tsx`, `components/booking/manage-meeting{,-page}.tsx`, `lib/meeting-tokens/`, `lib/booking/invite-links.ts`, `app/api/manage/[token]/**` |
 | Booking confirm/cancel/list | `lib/booking/`, `app/api/calendars/[id]/book/route.ts`, `app/api/book/[slug]/confirm/route.ts`, `app/api/meetings/[id]/route.ts` |
 | Availability grid | `components/availability-grid/`, `app/api/calendars/[id]/availability/route.ts` |
 | Google Calendar DWD | `lib/google/`, `lib/ports/google-calendar.ts`, `docs/adr/001-google-dwd.md` |
@@ -36,7 +37,7 @@ Agent-facing guide to find code quickly. Read `CONTEXT.md` first for domain lang
 - `meetings`: booked occurrences. Includes assigned Member, startsAt, duration, invitees, Google event id, Meet link, bookedBy, and guestEmail. A partial unique index `meetings_member_active_slot_idx` on `(assigned_member_id, starts_at) WHERE cancelled_at IS NULL` backstops double-booking (confirm-booking maps the unique violation to `SLOT_UNAVAILABLE`).
 - `webhookEndpoints`: per-Calendar webhook targets. Includes url, secret, enabledEvents, and `enabled` (enable/disable toggle). Webhook URLs are SSRF-validated (no private/loopback/link-local hosts) on write and before delivery.
 
-Latest migration: `drizzle/0008_webhook_enabled_meeting_slot_unique.sql` (adds `webhook_endpoints.enabled` and the meetings active-slot unique index).
+Latest migration: `drizzle/0009_meeting_cancellation_reason.sql` (adds nullable `meetings.cancellation_reason`, the guest's note when cancelling via a manage link).
 
 When changing schema:
 
@@ -78,6 +79,12 @@ Public booking pages:
 - `app/book/[slug]/page.tsx`: public booking flow.
 - `app/book/not-found.tsx`: public not-found CTA.
 
+Guest manage pages (targets of the links in invites and emails; all render `ManageMeetingPage`):
+
+- `app/manage/[token]/page.tsx`: overview with Reschedule / Cancel (`?rescheduled=1` shows the success banner).
+- `app/manage/[token]/reschedule/page.tsx`: opens straight into the time picker.
+- `app/manage/[token]/cancel/page.tsx`: cancel confirmation with optional reason.
+
 API routes:
 
 - `app/api/calendars/route.ts`: list/create Calendars.
@@ -98,6 +105,7 @@ API routes:
 - `app/api/book/[slug]/slots/route.ts`: public slots.
 - `app/api/book/[slug]/confirm/route.ts`: public booking confirm.
 - `app/api/meetings/[id]/route.ts`: cancel Meeting.
+- `app/api/manage/[token]/route.ts`, `slots/`, `reschedule/`, `cancel/` (POST, optional `{ reason }`): guest manage-link API.
 - `app/api/health/route.ts`: deploy health check.
 
 ## Core Flows
@@ -149,8 +157,16 @@ Booking confirm flow:
 1. Route loads Calendar bundle.
 2. `confirmBooking()` validates minimum notice for guests.
 3. Slot engine `assignMember()` checks eligibility.
-4. Google event is created with Scheduler as organizer.
-5. Meeting row is inserted.
+4. `prepareInvite()` (`lib/booking/invite-links.ts`) generates the manage token and appends Reschedule/Cancel links to the event description.
+5. Google event is created with Scheduler as organizer (Google emails the invite).
+6. Meeting row is inserted, then the same token is persisted (`manageToken.createForMeeting(id, { token })`); the result and public confirm API return `manageLinks`.
+
+Manage links:
+
+- URLs: `lib/meeting-tokens/links.ts` (`buildManageLinks`, `manageLinksFromManageUrl`). Tokens: `lib/meeting-tokens/tokens.ts` (sha256-hashed in `meeting_manage_tokens`; issuing never revokes others).
+- Email/invite rendering: `lib/email/render-template.ts` (`applyManageLinks`, `MANAGE_LINKS_FOOTER`, placeholders `{{manageUrl}}`/`{{rescheduleUrl}}`/`{{cancelUrl}}`).
+- Reschedule (`lib/booking/reschedule-meeting.ts`) and reassign (`lib/booking/reassign-meeting.ts`) send a new invite with fresh links and rotate tokens; guest cancel (`lib/booking/cancel-meeting-by-token.ts`) stores `cancellationReason` and keeps links valid.
+- Scheduler view: guest-cancelled Meetings show a "Cancelled by guest" badge and reason in `components/booking/meetings-table.tsx` / `meeting-card.tsx`.
 
 ### Availability View
 

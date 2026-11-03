@@ -3,9 +3,11 @@ import { getDb } from "@/lib/db/client";
 import { toMeeting } from "@/lib/db/mappers";
 import { meetings } from "@/lib/db/schema";
 import { defaultCalendarSettings } from "@/lib/types/platform";
-import { loadCalendarSchedulingSettings } from "@/lib/scheduling/load-scheduling-settings";
+import { loadCalendarBookingSettings } from "@/lib/scheduling/load-scheduling-settings";
 import { advanceAssignmentState } from "@/lib/booking/advance-assignment-state";
 import { violatesMinNotice } from "@/lib/slots/validate-min-notice";
+import type { ManageLinks } from "@/lib/meeting-tokens/links";
+import { prepareInvite } from "./invite-links";
 import { clearSlotsCacheForCalendar } from "./slots-cache";
 import type {
   BookedBy,
@@ -30,6 +32,8 @@ export type ConfirmBookingResult =
   | {
       ok: true;
       meeting: Meeting;
+      /** Reschedule/cancel links (also in the invite description). */
+      manageLinks: ManageLinks;
       duplicateWarning?: { existingMeetingId: string; manageUrl: string };
       redirectUrl?: string;
     }
@@ -133,7 +137,9 @@ export async function confirmBooking(
 
   const teamId = target?.teamId ?? body.teamId;
   const memberId = target?.memberId ?? body.memberId;
-  const scheduling = await loadCalendarSchedulingSettings(bundle.id);
+  const { scheduling, manageUrlInjection } = await loadCalendarBookingSettings(
+    bundle.id,
+  );
 
   const assignment = await deps.slots.assignMember({
     bundle,
@@ -154,12 +160,15 @@ export async function confirmBooking(
     body,
   );
 
+  // Token first, so the invite Google emails carries Reschedule/Cancel links.
+  const invite = prepareInvite(body.body, manageUrlInjection);
+
   const googleResult = await deps.google.createMeetingEvent({
     organizerEmail: bundle.scheduler.email,
     startsAt: body.startsAt,
     durationMinutes: body.durationMinutes,
     subject: body.subject,
-    body: body.body,
+    body: invite.description,
     attendeeEmails,
     requestMeet: true,
   });
@@ -201,7 +210,6 @@ export async function confirmBooking(
       });
     }
 
-    void deps.manageToken.createForMeeting(meeting.id);
     void deps.events.emit({
       calendarId: bundle.id,
       eventType: "meeting.booked",
@@ -223,9 +231,30 @@ export async function confirmBooking(
     });
     void deps.email.enqueueSequenceForMeeting(meeting.id, "meeting.booked");
 
+    // Persist the token embedded in the invite. A failure here must not undo
+    // the booking (the event and row exist), so it is logged, not thrown.
+    let manageLinks = invite.links;
+    try {
+      const issued = await deps.manageToken.createForMeeting(meeting.id, {
+        token: invite.token,
+        startsAt: meeting.startsAt,
+      });
+      manageLinks = {
+        manageUrl: issued.manageUrl,
+        rescheduleUrl: issued.rescheduleUrl,
+        cancelUrl: issued.cancelUrl,
+      };
+    } catch (tokenError) {
+      console.error("[confirmBooking] manage token persist failed", {
+        meetingId: meeting.id,
+        error: tokenError,
+      });
+    }
+
     return {
       ok: true,
       meeting,
+      manageLinks,
       ...(duplicateWarning ? { duplicateWarning } : {}),
     };
   } catch (error) {

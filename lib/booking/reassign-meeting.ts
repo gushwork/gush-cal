@@ -3,9 +3,10 @@ import type { AppDeps } from "@/lib/deps";
 import { getDb } from "@/lib/db/client";
 import { loadCalendarBundleByCalendarId } from "@/lib/db/assemble-calendar-bundle";
 import { meetings } from "@/lib/db/schema";
-import { loadCalendarSchedulingSettings } from "@/lib/scheduling/load-scheduling-settings";
+import { loadCalendarBookingSettings } from "@/lib/scheduling/load-scheduling-settings";
 import type { Meeting } from "@/lib/types";
 import { loadMeetingForScheduler } from "./cancel-meeting";
+import { prepareInvite } from "./invite-links";
 import { clearSlotsCacheForCalendar } from "./slots-cache";
 
 export type ReassignMeetingInput = {
@@ -94,7 +95,9 @@ export async function reassignMeeting(
     return { ok: false, code: "NOT_FOUND" };
   }
 
-  const scheduling = await loadCalendarSchedulingSettings(meeting.calendarId);
+  const { scheduling, manageUrlInjection } = await loadCalendarBookingSettings(
+    meeting.calendarId,
+  );
 
   const assignment = await deps.slots.assignMember({
     bundle,
@@ -115,6 +118,9 @@ export async function reassignMeeting(
     meeting,
   );
 
+  // The new invite carries fresh Reschedule/Cancel links (persisted below).
+  const invite = prepareInvite(meeting.body, manageUrlInjection);
+
   // BUG-045: create new event FIRST; on failure the old event + DB row stay
   // intact (do not delete the old event before the DB points at the new one).
   const googleResult = await deps.google.createMeetingEvent({
@@ -122,7 +128,7 @@ export async function reassignMeeting(
     startsAt: meeting.startsAt,
     durationMinutes: meeting.durationMinutes,
     subject: meeting.subject,
-    body: meeting.body,
+    body: invite.description,
     attendeeEmails,
     requestMeet: true,
   });
@@ -180,7 +186,10 @@ export async function reassignMeeting(
   });
 
   await deps.manageToken.revokeForMeeting(meeting.id);
-  await deps.manageToken.createForMeeting(meeting.id);
+  await deps.manageToken.createForMeeting(meeting.id, {
+    token: invite.token,
+    startsAt: meeting.startsAt,
+  });
 
   return { ok: true, meeting: updatedMeeting };
 }

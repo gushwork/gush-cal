@@ -26,6 +26,9 @@ Avoid: Booking, appointment, session in persisted/domain code.
 **App Admin**: Scheduler whose email is on the `ADMIN_EMAILS` allowlist (default `punit.pal@gushwork.ai`). Can open `/admin`, the platform-wide usage dashboard. Everyone else gets a 404 there.
 Avoid: superuser, owner (a Scheduler owns their Calendars; App Admin is a separate, platform-level role).
 
+**Manage links**: guest-facing URLs derived from one manage token: `/manage/{token}` (overview), `/manage/{token}/reschedule` and `/manage/{token}/cancel`. They go in every calendar invite description and in sequence emails (`{{manageUrl}}`, `{{rescheduleUrl}}`, `{{cancelUrl}}`).
+Avoid: magic link, self-service link.
+
 Show/no-show attendance and showup-weighted round robin are **out of scope** for the platform expansion.
 
 ## Time And Availability Invariants
@@ -50,6 +53,13 @@ Show/no-show attendance and showup-weighted round robin are **out of scope** for
 - Google Calendar access is via domain-wide delegation; Scheduler OAuth is identity only.
 - A Member cannot hold two active Meetings at the same instant: a partial unique index enforces this and `confirmBooking` surfaces the conflict as `SLOT_UNAVAILABLE`. Cancelled Meetings (`cancelledAt` set) free the slot and are excluded from "upcoming" counts.
 - A Calendar API key authorizes only its own Calendar; meeting operations must verify the target Meeting belongs to that Calendar (no cross-Calendar access).
+
+## Manage Link Invariants
+
+- The manage token is generated **before** the Google event so the invite email already carries working Reschedule/Cancel links; the token is persisted right after the Meeting row. The stored Meeting `body` never contains links.
+- Issuing a token never revokes earlier ones (links already emailed keep working). Guest reschedule and Scheduler reassign send a new invite with a fresh token and revoke the old ones. Guest cancel keeps links valid so they show the cancelled state; every action endpoint refuses cancelled or past Meetings.
+- Calendar setting `manageUrlInjection` controls both invites and sequence emails: `auto_inject` appends the Reschedule/Cancel footer unless the text places a link placeholder; `template_opt_in` only renders placeholders.
+- Guest cancel is soft (`cancelledAt`, optional `cancellationReason` ≤ 500 chars, sent as `reason` in the `meeting.cancelled` webhook with `cancelledBy: "guest"`). Scheduler cancel stays a hard delete.
 
 ## Analytics Invariants
 

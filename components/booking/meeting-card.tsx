@@ -69,6 +69,9 @@ export function MeetingCard({
   showPastBadge = false,
 }: MeetingCardProps) {
   const isPast = new Date(meeting.startsAt).getTime() < Date.now();
+  const isCancelled = meeting.cancelledAt != null;
+  const showJoin = Boolean(meeting.meetLink) && !isCancelled;
+  const showCancel = canCancel && !isCancelled;
   const relativeTime = formatRelativeMeetingTime(meeting.startsAt);
 
   return (
@@ -76,7 +79,7 @@ export function MeetingCard({
       padding="sm"
       className={cn(
         "space-y-3",
-        isPast && "text-ink-muted",
+        (isPast || isCancelled) && "text-ink-muted",
       )}
     >
       <div className="flex items-start justify-between gap-3">
@@ -86,12 +89,17 @@ export function MeetingCard({
               dateTime={meeting.startsAt}
               className={cn(
                 "text-sm font-medium",
-                isPast ? "text-ink-muted" : "text-ink",
+                isPast || isCancelled ? "text-ink-muted" : "text-ink",
+                isCancelled && "line-through",
               )}
             >
               {formatMeetingTime(meeting.startsAt)}
             </time>
-            {showPastBadge && isPast && <Badge variant="muted">Past</Badge>}
+            {isCancelled ? (
+              <Badge variant="error">Cancelled by guest</Badge>
+            ) : (
+              showPastBadge && isPast && <Badge variant="muted">Past</Badge>
+            )}
           </div>
           {relativeTime && (
             <p className="text-xs text-ink-muted">{relativeTime}</p>
@@ -105,6 +113,11 @@ export function MeetingCard({
           {meeting.subject}
         </p>
         <p className="mt-0.5 text-xs text-ink-muted">{formatInvitees(meeting)}</p>
+        {isCancelled && meeting.cancellationReason ? (
+          <p className="mt-1 text-xs text-status-error-700">
+            Reason: “{meeting.cancellationReason}”
+          </p>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
@@ -125,12 +138,12 @@ export function MeetingCard({
         </div>
       </div>
 
-      {(meeting.meetLink || canCancel) && (
+      {(showJoin || showCancel) && (
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border pt-3">
-          {meeting.meetLink ? (
+          {showJoin ? (
             <Button asChild variant="link" size="sm">
               <a
-                href={meeting.meetLink}
+                href={meeting.meetLink ?? undefined}
                 target="_blank"
                 rel="noreferrer"
                 aria-label={`Join ${meeting.subject}`}
@@ -140,7 +153,7 @@ export function MeetingCard({
               </a>
             </Button>
           ) : null}
-          {canCancel ? (
+          {showCancel ? (
             <Button
               type="button"
               variant="ghost"

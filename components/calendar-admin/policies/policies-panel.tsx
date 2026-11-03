@@ -211,11 +211,14 @@ export function PoliciesPanel({
               }
             />
             <EnumSelect<ManageUrlInjection>
-              label="Manage link in emails"
+              label="Reschedule & cancel links (invites and emails)"
               value={settings.manageUrlInjection}
               options={[
-                { value: "auto_inject", label: "Auto inject" },
-                { value: "template_opt_in", label: "Template opt-in" },
+                { value: "auto_inject", label: "Add automatically" },
+                {
+                  value: "template_opt_in",
+                  label: "Only via {{rescheduleUrl}} / {{cancelUrl}}",
+                },
               ]}
               onChange={(value) =>
                 setSettings((current) => ({

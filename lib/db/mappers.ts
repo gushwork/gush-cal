@@ -72,6 +72,7 @@ export function toMeeting(row: MeetingRow): Meeting {
     teamId: row.teamId,
     bookingLinkId: row.bookingLinkId,
     cancelledAt: (row.cancelledAt as UtcInstant | null) ?? null,
+    cancellationReason: row.cancellationReason ?? null,
     createdAt: row.createdAt as UtcInstant,
   };
 }
