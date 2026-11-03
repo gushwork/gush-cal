@@ -10,7 +10,8 @@ import {
 import type { EventsPort } from "@/lib/ports/events";
 import type { AppEventType } from "@/lib/types/platform";
 import { createEventsStub } from "@/lib/stubs/events-stub";
-import { applyManageUrlInjection, renderTemplate } from "./render-template";
+import { manageLinksFromManageUrl } from "@/lib/meeting-tokens/links";
+import { applyManageLinks, renderTemplate } from "./render-template";
 import { sendEmail } from "./send";
 import {
   EMAIL_STEP_TRIGGER_TYPE,
@@ -121,8 +122,11 @@ export async function executeEmailStep(
     .limit(1);
 
   const manageUrl = payload.manageUrl ?? "";
+  const links = manageUrl ? manageLinksFromManageUrl(manageUrl) : null;
   const templateVars = {
     manageUrl,
+    rescheduleUrl: links?.rescheduleUrl,
+    cancelUrl: links?.cancelUrl,
     startsAt: meeting.startsAt,
     guestEmail: meeting.guestEmail,
     memberEmail: member?.email,
@@ -133,11 +137,9 @@ export async function executeEmailStep(
   if (step.action === "send_email" || step.action === "both") {
     const injection = await loadCalendarManageUrlInjection(meeting.calendarId);
     const subject = renderTemplate(step.subjectTemplate ?? "Meeting reminder", templateVars);
-    const body = applyManageUrlInjection(
-      step.bodyTemplate ?? "",
-      manageUrl,
-      injection,
-    );
+    const body = links
+      ? applyManageLinks(step.bodyTemplate ?? "", links, injection)
+      : (step.bodyTemplate ?? "");
 
     const result = await sendEmail({
       to: meeting.guestEmail,

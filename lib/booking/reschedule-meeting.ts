@@ -17,6 +17,7 @@ import {
 import { normalizeCalendarSettings } from "@/lib/scheduling/normalize-settings";
 import { advanceAssignmentState } from "@/lib/booking/advance-assignment-state";
 import { violatesMinNotice } from "@/lib/slots/validate-min-notice";
+import { prepareInvite } from "./invite-links";
 import { clearSlotsCacheForCalendar } from "./slots-cache";
 
 export type MeetingManageContext = {
@@ -199,6 +200,10 @@ export async function rescheduleMeeting(
     meeting,
   );
 
+  // The new invite carries a fresh token's Reschedule/Cancel links; it is only
+  // persisted (and old links revoked) once the reschedule succeeds.
+  const invite = prepareInvite(meeting.body, settings.manageUrlInjection);
+
   // BUG-020: create new event FIRST so a create failure leaves the old event
   // + DB row intact (no orphaned googleEventId).
   const googleResult = await deps.google.createMeetingEvent({
@@ -206,7 +211,7 @@ export async function rescheduleMeeting(
     startsAt: input.startsAt,
     durationMinutes: input.durationMinutes,
     subject: meeting.subject,
-    body: meeting.body,
+    body: invite.description,
     attendeeEmails,
     requestMeet: true,
   });
@@ -280,8 +285,12 @@ export async function rescheduleMeeting(
     startsAt: input.startsAt,
   });
 
+  // Rotate: links from the old invite stop working; the new invite's work.
   await deps.manageToken.revokeForMeeting(meeting.id);
-  const { manageUrl } = await deps.manageToken.createForMeeting(meeting.id);
+  const { manageUrl } = await deps.manageToken.createForMeeting(meeting.id, {
+    token: invite.token,
+    startsAt: input.startsAt,
+  });
 
   return { ok: true, meeting: updatedMeeting, manageUrl };
 }

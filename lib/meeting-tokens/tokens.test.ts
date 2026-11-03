@@ -56,7 +56,7 @@ describe("createManageTokenPort", () => {
   });
 
   describe("createForMeeting", () => {
-    it("returns token and manageUrl, revokes prior tokens, stores sha256 hash", async () => {
+    it("returns token and links, keeps prior tokens valid, stores sha256 hash", async () => {
       mockSelectLimit.mockResolvedValueOnce([{ startsAt: STARTS_AT }]);
 
       const port = createManageTokenPort();
@@ -65,8 +65,11 @@ describe("createManageTokenPort", () => {
       expect(result).toEqual({
         token: FIXED_TOKEN,
         manageUrl: `https://app.example.com/manage/${FIXED_TOKEN}`,
+        rescheduleUrl: `https://app.example.com/manage/${FIXED_TOKEN}/reschedule`,
+        cancelUrl: `https://app.example.com/manage/${FIXED_TOKEN}/cancel`,
       });
-      expect(mockUpdateWhere).toHaveBeenCalledOnce();
+      // Issuing must not revoke links already sent in invites/emails.
+      expect(mockUpdateWhere).not.toHaveBeenCalled();
       expect(mockInsertValues).toHaveBeenCalledWith({
         meetingId: MEETING_ID,
         tokenHash: FIXED_HASH,
@@ -77,6 +80,23 @@ describe("createManageTokenPort", () => {
       const expected = new Date(STARTS_AT);
       expected.setUTCDate(expected.getUTCDate() + TOKEN_EXPIRY_DAYS_AFTER_MEETING);
       expect(expiry.toISOString()).toBe(expected.toISOString());
+    });
+
+    it("persists a pre-generated token without looking up the meeting", async () => {
+      const port = createManageTokenPort();
+      const result = await port.createForMeeting(MEETING_ID, {
+        token: "invite-token",
+        startsAt: STARTS_AT,
+      });
+
+      expect(mockSelectLimit).not.toHaveBeenCalled();
+      expect(result.token).toBe("invite-token");
+      expect(result.cancelUrl).toBe("https://app.example.com/manage/invite-token/cancel");
+      expect(mockInsertValues).toHaveBeenCalledWith({
+        meetingId: MEETING_ID,
+        tokenHash: createHash("sha256").update("invite-token").digest("hex"),
+        expiresAt: expect.any(String),
+      });
     });
 
     it("throws when meeting is not found", async () => {

@@ -18,9 +18,12 @@ export function createEmailPort(): EmailPort {
 export { processDueEmailSteps } from "./executor";
 export { sendEmail, setEmailSendForTest } from "./send";
 export {
+  applyManageLinks,
   applyManageUrlInjection,
   EMAIL_FOOTER_LINE,
+  MANAGE_LINKS_FOOTER,
   renderTemplate,
+  templateHasManageLinks,
 } from "./render-template";
 export {
   cancelPendingEmailSteps,

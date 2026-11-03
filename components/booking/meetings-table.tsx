@@ -44,6 +44,7 @@ function MeetingRows({
     <>
       {meetings.map((meeting) => {
         const isPast = new Date(meeting.startsAt).getTime() < now;
+        const isCancelled = meeting.cancelledAt != null;
         const memberName =
           memberNames[meeting.assignedMemberId] ?? meeting.assignedMemberId;
         const relativeTime = formatRelativeMeetingTime(meeting.startsAt);
@@ -53,16 +54,23 @@ function MeetingRows({
             key={meeting.id}
             className={cn(
               "interactive-row border-b border-neutral-100 transition-colors last:border-0 hover:bg-neutral-25",
-              isPast && "text-neutral-500",
+              (isPast || isCancelled) && "text-neutral-500",
             )}
           >
             <td className="px-4 py-3 whitespace-nowrap">
               <div className="flex flex-wrap items-center gap-2">
-                <span className={isPast ? "text-neutral-500" : "text-neutral-900"}>
+                <span
+                  className={cn(
+                    isPast || isCancelled ? "text-neutral-500" : "text-neutral-900",
+                    isCancelled && "line-through",
+                  )}
+                >
                   {formatMeetingTime(meeting.startsAt)}
                 </span>
-                {showPastBadge && isPast && (
-                  <Badge variant="muted">Past</Badge>
+                {isCancelled ? (
+                  <Badge variant="error">Cancelled by guest</Badge>
+                ) : (
+                  showPastBadge && isPast && <Badge variant="muted">Past</Badge>
                 )}
               </div>
               {relativeTime && (
@@ -73,10 +81,17 @@ function MeetingRows({
               </div>
             </td>
             <td className="px-4 py-3">
-              <div className="text-neutral-900">{meeting.subject}</div>
+              <div className={isCancelled ? "text-neutral-500" : "text-neutral-900"}>
+                {meeting.subject}
+              </div>
               <div className="mt-0.5 text-xs text-neutral-500">
                 {formatInvitees(meeting)}
               </div>
+              {isCancelled && meeting.cancellationReason ? (
+                <div className="mt-1 max-w-xs text-xs text-status-error-700">
+                  Reason: “{meeting.cancellationReason}”
+                </div>
+              ) : null}
             </td>
             <td className="px-4 py-3">
               <div className="flex items-center gap-2">
@@ -86,7 +101,7 @@ function MeetingRows({
             </td>
             <td className="px-4 py-3">{formatBookedBy(meeting.bookedBy)}</td>
             <td className="px-4 py-3">
-              {meeting.meetLink ? (
+              {meeting.meetLink && !isCancelled ? (
                 <Button asChild variant="link" size="sm">
                   <a
                     href={meeting.meetLink}
@@ -103,7 +118,7 @@ function MeetingRows({
               )}
             </td>
             <td className="px-4 py-3 text-right">
-              {canCancel ? (
+              {canCancel && !isCancelled ? (
                 <Button
                   type="button"
                   variant="ghost"

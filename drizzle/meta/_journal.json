@@ -64,6 +64,13 @@
       "when": 1782599589706,
       "tag": "0008_webhook_enabled_meeting_slot_unique",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793679542844,
+      "tag": "0009_meeting_cancellation_reason",
+      "breakpoints": true
     }
   ]
 }

@@ -3,6 +3,7 @@ import { CheckCircle2, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/ui/cn";
+import type { ManageLinks } from "@/lib/meeting-tokens/links";
 import type { IanaTimezone, PublicMeeting } from "@/lib/types";
 
 export type BookingSuccessPanelProps = {
@@ -11,6 +12,8 @@ export type BookingSuccessPanelProps = {
   calendarName?: string;
   bookAnotherHref?: string;
   meetingsHref?: string;
+  /** Guest's reschedule/cancel links (same as in the calendar invite). */
+  manageLinks?: ManageLinks;
 };
 
 function formatMeetingTime(startsAt: string, timezone: IanaTimezone): string {
@@ -42,6 +45,7 @@ export function BookingSuccessPanel({
   calendarName,
   bookAnotherHref,
   meetingsHref,
+  manageLinks,
 }: BookingSuccessPanelProps) {
   const showAdminLinks = Boolean(bookAnotherHref || meetingsHref);
 
@@ -115,6 +119,29 @@ export function BookingSuccessPanel({
           </a>
         </Button>
       </div>
+
+      {manageLinks ? (
+        <p
+          className="animate-fade-up mt-6 border-t border-border/60 pt-4 text-center text-sm text-ink-muted print:hidden"
+          style={{ animationDelay: "320ms" }}
+        >
+          Need to make a change?{" "}
+          <a
+            href={manageLinks.rescheduleUrl}
+            className="interactive font-medium text-primary hover:underline"
+          >
+            Reschedule
+          </a>{" "}
+          or{" "}
+          <a
+            href={manageLinks.cancelUrl}
+            className="interactive font-medium text-primary hover:underline"
+          >
+            cancel
+          </a>
+          . These links are also in your calendar invite.
+        </p>
+      ) : null}
 
       {showAdminLinks ? (
         <div

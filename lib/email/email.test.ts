@@ -8,6 +8,7 @@ import {
   setEmailExecutorEventsForTest,
 } from "./executor";
 import {
+  applyManageLinks,
   applyManageUrlInjection,
   EMAIL_FOOTER_LINE,
   renderTemplate,
@@ -89,7 +90,12 @@ beforeEach(() => {
   setEmailExecutorDbForTest(testDb.db as never);
   setEmailManageTokenForTest({
     async createForMeeting() {
-      return { token: "token-abc", manageUrl: MANAGE_URL };
+      return {
+        token: "token-abc",
+        manageUrl: MANAGE_URL,
+        rescheduleUrl: `${MANAGE_URL}/reschedule`,
+        cancelUrl: `${MANAGE_URL}/cancel`,
+      };
     },
     async validate() {
       return { ok: false, code: "INVALID" };
@@ -118,15 +124,27 @@ describe("render-template", () => {
     expect(result).toContain(MANAGE_URL);
   });
 
-  it("auto_injects manageUrl footer when missing from template", () => {
+  it("auto_injects reschedule and cancel links when missing from template", () => {
     const body = applyManageUrlInjection(
       "Thanks for booking!",
       MANAGE_URL,
       "auto_inject",
     );
-    expect(body).toContain("Thanks for booking!");
-    expect(body).toContain(MANAGE_URL);
-    expect(body).toContain(EMAIL_FOOTER_LINE.replace("{{manageUrl}}", "").trim());
+    expect(body).toBe(
+      `Thanks for booking!\n\nNeed to make a change?\nReschedule: ${MANAGE_URL}/reschedule\nCancel: ${MANAGE_URL}/cancel`,
+    );
+    expect(EMAIL_FOOTER_LINE).toContain("{{rescheduleUrl}}");
+  });
+
+  it("renders reschedule/cancel placeholders without adding a footer", () => {
+    const body = applyManageLinks(
+      "Change: {{rescheduleUrl}} · Cancel: {{cancelUrl}} · {{guestEmail}}",
+      { manageUrl: "https://x/m/t", rescheduleUrl: "https://x/m/t/reschedule", cancelUrl: "https://x/m/t/cancel" },
+      "auto_inject",
+    );
+    expect(body).toBe(
+      "Change: https://x/m/t/reschedule · Cancel: https://x/m/t/cancel · {{guestEmail}}",
+    );
   });
 
   it("does not auto-inject when template_opt_in", () => {

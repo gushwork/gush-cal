@@ -154,6 +154,8 @@ export const meetings = pgTable(
     bookedBy: bookedByEnum("booked_by").notNull(),
     guestEmail: text("guest_email"),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true, mode: "string" }),
+    /** Optional note the guest left when cancelling via their manage link. */
+    cancellationReason: text("cancellation_reason"),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
       .notNull()
       .defaultNow(),

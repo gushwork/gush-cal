@@ -4,6 +4,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BookingStepper } from "@/components/booking/booking-stepper";
 import { BookingSuccessPanel } from "@/components/booking/booking-success";
+import type { ManageLinks } from "@/lib/meeting-tokens/links";
 import { DuplicatePrompt } from "@/components/booking/duplicate-prompt";
 import {
   countSlotsByDate,
@@ -241,6 +242,7 @@ export function BookingFlow({
   const [confirmedMeeting, setConfirmedMeeting] = useState<PublicMeeting | null>(
     null,
   );
+  const [manageLinks, setManageLinks] = useState<ManageLinks | null>(null);
   const [metadataTeams, setMetadataTeams] = useState<TeamOption[]>(
     initialMetadata?.teams ?? [],
   );
@@ -607,8 +609,12 @@ export function BookingFlow({
     options?: {
       duplicateWarning?: { manageUrl: string };
       redirectUrl?: string;
+      manageLinks?: ManageLinks;
     },
   ) {
+    if (options?.manageLinks) {
+      setManageLinks(options.manageLinks);
+    }
     if (options?.duplicateWarning) {
       setDuplicatePrompt({
         manageUrl: options.duplicateWarning.manageUrl,
@@ -664,6 +670,7 @@ export function BookingFlow({
         manageUrl?: string;
         duplicateWarning?: { existingMeetingId: string; manageUrl: string };
         redirectUrl?: string;
+        manageLinks?: ManageLinks;
       };
 
       if (data.error === "DUPLICATE_MEETING") {
@@ -707,6 +714,7 @@ export function BookingFlow({
         await completeBookingSuccess(data.meeting, {
           duplicateWarning: data.duplicateWarning,
           redirectUrl: data.redirectUrl,
+          manageLinks: data.manageLinks,
         });
       }
     } catch (err) {
@@ -795,6 +803,7 @@ export function BookingFlow({
         meeting={confirmedMeeting}
         viewerTimezone={viewerTimezone}
         calendarName={calendarName}
+        manageLinks={isPublic ? (manageLinks ?? undefined) : undefined}
       />
     );
   }

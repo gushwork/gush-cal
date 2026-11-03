@@ -19,14 +19,25 @@ export type CancelMeetingByTokenResult =
       message?: string;
     };
 
+/** Longest cancellation note kept; longer input is truncated. */
+export const MAX_CANCELLATION_REASON_LENGTH = 500;
+
+export function normalizeCancellationReason(reason: unknown): string | null {
+  if (typeof reason !== "string") return null;
+  const trimmed = reason.trim();
+  return trimmed ? trimmed.slice(0, MAX_CANCELLATION_REASON_LENGTH) : null;
+}
+
 function isMeetingPast(startsAt: string, now = new Date()): boolean {
   return new Date(startsAt).getTime() <= now.getTime();
 }
 
 export async function cancelMeetingByToken(
   deps: AppDeps,
-  input: { token: string },
+  input: { token: string; reason?: string | null },
 ): Promise<CancelMeetingByTokenResult> {
+  const reason = normalizeCancellationReason(input.reason);
+
   const validation = await deps.manageToken.validate(input.token);
   if (!validation.ok) {
     return { ok: false, code: "INVALID_TOKEN" };
@@ -66,7 +77,7 @@ export async function cancelMeetingByToken(
   const now = new Date().toISOString();
   await getDb()
     .update(meetings)
-    .set({ cancelledAt: now })
+    .set({ cancelledAt: now, cancellationReason: reason })
     .where(eq(meetings.id, meeting.id));
 
   clearSlotsCacheForCalendar(bundle.id);
@@ -78,13 +89,14 @@ export async function cancelMeetingByToken(
     calendarId: bundle.id,
     eventType: "meeting.cancelled",
     meetingId: meeting.id,
-    payload: { meetingId: meeting.id },
+    payload: { meetingId: meeting.id, cancelledBy: "guest", reason },
   });
   void deps.salesforce.syncFieldMap(bundle.id, "cancel", {
     meetingId: meeting.id,
   });
 
-  await deps.manageToken.revokeForMeeting(meeting.id);
+  // Links stay valid so the guest's invite link shows "Meeting cancelled" with
+  // a way to book again; every action endpoint refuses cancelled Meetings.
 
   return { ok: true };
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "meetings" ADD COLUMN "cancellation_reason" text;

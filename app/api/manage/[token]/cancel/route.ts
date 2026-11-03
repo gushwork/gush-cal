@@ -4,10 +4,22 @@ import { createAppDeps } from "@/lib/deps";
 
 type RouteParams = { params: Promise<{ token: string }> };
 
-export async function POST(_request: Request, { params }: RouteParams) {
+/** Body is optional: `{ "reason": "..." }` records why the guest cancelled. */
+export async function POST(request: Request, { params }: RouteParams) {
   const { token } = await params;
+  let reason: string | null = null;
+  const raw = await request.text();
+  if (raw.trim()) {
+    try {
+      const body = JSON.parse(raw) as { reason?: unknown };
+      reason = typeof body.reason === "string" ? body.reason : null;
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+  }
+
   const deps = createAppDeps();
-  const result = await cancelMeetingByToken(deps, { token });
+  const result = await cancelMeetingByToken(deps, { token, reason });
 
   if (!result.ok) {
     if (result.code === "INVALID_TOKEN") {

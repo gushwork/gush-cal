@@ -72,6 +72,8 @@ export type Meeting = {
   teamId: string | null;
   bookingLinkId: string | null;
   cancelledAt: UtcInstant | null;
+  /** Guest's note when they cancelled via their manage link. */
+  cancellationReason?: string | null;
   createdAt: UtcInstant;
 };
 

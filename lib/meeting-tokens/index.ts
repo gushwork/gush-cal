@@ -5,3 +5,5 @@ export {
   generateManageToken,
   hashManageToken,
 } from "./tokens";
+export { buildManageLinks, manageLinksFromManageUrl } from "./links";
+export type { ManageLinks } from "./links";
