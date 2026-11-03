@@ -110,3 +110,69 @@ export function BookingPageSkeleton({ className }: { className?: string }) {
     </div>
   );
 }
+
+function AnalyticsBlocksSkeleton({ dark = false }: { dark?: boolean }) {
+  return (
+    <>
+      <div
+        className={cn(
+          "space-y-4 rounded-xl border border-neutral-100 p-4 shadow-s3",
+          dark ? "bg-neutral-900" : "bg-white",
+        )}
+      >
+        <Skeleton className={cn("h-12 w-40", dark && "bg-white/10")} />
+        <Skeleton className={cn("h-3 w-72 max-w-full", dark && "bg-white/10")} />
+        <Skeleton className={cn("h-36 w-full", dark && "bg-white/10")} />
+      </div>
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-neutral-100 bg-neutral-100 shadow-s3 md:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="space-y-2 bg-white px-4 py-4">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-7 w-16" />
+          </div>
+        ))}
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        {Array.from({ length: 2 }).map((_, index) => (
+          <div
+            key={index}
+            className="space-y-3 rounded-xl border border-neutral-100 bg-white p-4 shadow-s3"
+          >
+            <Skeleton className="h-4 w-32" />
+            {Array.from({ length: 4 }).map((__, row) => (
+              <Skeleton key={row} className="h-7 w-full" />
+            ))}
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+/** Calendar Analytics content pane (header + sidebar stay mounted). */
+export function AnalyticsSectionSkeleton() {
+  return (
+    <LoadingRegion label="Loading analytics" className="min-w-0 space-y-4">
+      <div className="flex items-end justify-between gap-3">
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-16" />
+          <Skeleton className="h-6 w-64 max-w-full" />
+        </div>
+        <Skeleton className="h-8 w-32 rounded-full" />
+      </div>
+      <AnalyticsBlocksSkeleton />
+    </LoadingRegion>
+  );
+}
+
+/** App Admin platform usage page. */
+export function AnalyticsPageSkeleton() {
+  return (
+    <PageContainer variant="booking">
+      <LoadingRegion label="Loading platform usage" className="space-y-4">
+        <PageHeaderSkeleton />
+        <AnalyticsBlocksSkeleton dark />
+      </LoadingRegion>
+    </PageContainer>
+  );
+}

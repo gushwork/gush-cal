@@ -1,3 +1,4 @@
+import { AdminNavLink } from "@/components/brand/admin-nav-link";
 import { AdminShellHeader } from "@/components/brand/admin-shell-header";
 import { CalendarsNavLink } from "@/components/brand/calendars-nav-link";
 import { UserMenu } from "@/components/brand/user-menu";
@@ -32,6 +33,8 @@ export type AppShellProps = {
   children: React.ReactNode;
   userEmail?: string;
   userName?: string;
+  /** Shows the App Admin entry points (header link + account menu item). */
+  isAdmin?: boolean;
   publicLogoHref?: string | null;
 };
 
@@ -97,6 +100,7 @@ export function AppShell({
   children,
   userEmail,
   userName,
+  isAdmin = false,
   publicLogoHref = null,
 }: AppShellProps) {
   if (variant === "auth-minimal") {
@@ -162,11 +166,13 @@ export function AppShell({
           <nav className="flex items-center gap-6 text-sm">
             <BrandLogo />
             <CalendarsNavLink />
+            {isAdmin && <AdminNavLink />}
           </nav>
           {userEmail && (
             <UserMenu
               email={userEmail}
               name={userName}
+              isAdmin={isAdmin}
               signOutAction={signOutAction}
             />
           )}

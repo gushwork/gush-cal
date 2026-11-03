@@ -23,6 +23,9 @@ Avoid: sub-pool, group in user-facing copy (use Team).
 **Meeting**: concrete scheduled occurrence with assigned Member, time, duration, invitees, subject/body, Google event id, Meet link, and booked-by source.
 Avoid: Booking, appointment, session in persisted/domain code.
 
+**App Admin**: Scheduler whose email is on the `ADMIN_EMAILS` allowlist (default `punit.pal@gushwork.ai`). Can open `/admin`, the platform-wide usage dashboard. Everyone else gets a 404 there.
+Avoid: superuser, owner (a Scheduler owns their Calendars; App Admin is a separate, platform-level role).
+
 Show/no-show attendance and showup-weighted round robin are **out of scope** for the platform expansion.
 
 ## Time And Availability Invariants
@@ -47,6 +50,12 @@ Show/no-show attendance and showup-weighted round robin are **out of scope** for
 - Google Calendar access is via domain-wide delegation; Scheduler OAuth is identity only.
 - A Member cannot hold two active Meetings at the same instant: a partial unique index enforces this and `confirmBooking` surfaces the conflict as `SLOT_UNAVAILABLE`. Cancelled Meetings (`cancelledAt` set) free the slot and are excluded from "upcoming" counts.
 - A Calendar API key authorizes only its own Calendar; meeting operations must verify the target Meeting belongs to that Calendar (no cross-Calendar access).
+
+## Analytics Invariants
+
+- **Booked** = Meetings created in the window (including ones later cancelled). **Held** = active Meetings whose start fell in the window and has passed. Cancelled Meetings never count toward load, hours, or upcoming.
+- Windows are rolling (7/30/90 days, `?range=`) and compared with the window immediately before.
+- Calendar Analytics bucket days and hours in the **Calendar timezone**; the App Admin dashboard buckets by **UTC** day. Both are deterministic on the server, so they render without hydration risk.
 
 ## Legacy Terms
 

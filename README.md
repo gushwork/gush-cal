@@ -177,6 +177,7 @@ npm run dev
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Prod | Service account key JSON (single line) |
 | `GOOGLE_DWD_SUBJECT_EMAIL` | Recommended | Workspace user for FreeBusy impersonation |
 | `USE_STUBS` | No | `1` = stub Google/slot engines (local/CI without DWD) |
+| `ADMIN_EMAILS` | No | Comma-separated App Admin emails for the `/admin` platform usage dashboard (default `punit.pal@gushwork.ai`) |
 
 Copy the template:
 
@@ -198,6 +199,9 @@ Sign in at `/login` with a `@ALLOWED_DOMAIN` account, then:
 1. Create a **Calendar** at `/calendars/new`
 2. Add **Members** (emails must be on the same domain)
 3. Copy the public booking link from the Calendar detail page
+4. Track bookings, Member load, and peak hours on the Calendar's **Analytics** tab (`/calendars/{id}/analytics`)
+
+App Admins (`ADMIN_EMAILS`) also get an **Admin** link to `/admin`: platform-wide usage across every Scheduler and Calendar.
 
 ---
 

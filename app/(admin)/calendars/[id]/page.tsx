@@ -60,12 +60,17 @@ export default async function CalendarOverviewPage({
     allMeetings?.filter(
       (m) => m.cancelledAt === null && new Date(m.startsAt).getTime() >= now,
     ).length ?? 0;
+  const thirtyDaysAgo = now - 30 * 86_400_000;
+  const bookedLast30Days =
+    allMeetings?.filter((m) => new Date(m.createdAt).getTime() >= thirtyDaysAgo)
+      .length ?? 0;
 
   return (
     <CalendarStats
       calendarId={id}
       memberCount={bundle.members.length}
       upcomingMeetingCount={upcomingMeetingCount}
+      bookedLast30Days={bookedLast30Days}
     />
   );
 }
